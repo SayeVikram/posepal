@@ -126,6 +126,7 @@ async def create_assignment(
     pose_template_id: int,
     due_date: str | None,
     notes: str | None,
+    required_days: int | None = None,
 ) -> dict:
     sb = get_client()
     res = sb.table("assignments").insert({
@@ -134,8 +135,41 @@ async def create_assignment(
         "pose_template_id": pose_template_id,
         "due_date": due_date,
         "notes": notes,
+        "required_days": required_days,
     }).execute()
     return res.data[0] if res.data else {}
+
+
+async def update_assignment(assignment_id: int, **fields) -> dict:
+    sb = get_client()
+    res = sb.table("assignments").update(fields).eq("id", assignment_id).execute()
+    return res.data[0] if res.data else {}
+
+
+async def get_therapist_patient_assignments(therapist_id: int, patient_id: int) -> list[dict]:
+    sb = get_client()
+    res = (
+        sb.table("assignments")
+        .select("*, pose_templates(*), sessions(id, recorded_at, processed, session_analyses(overall_correctness))")
+        .eq("therapist_id", therapist_id)
+        .eq("patient_id", patient_id)
+        .order("assigned_at", desc=True)
+        .execute()
+    )
+    return res.data or []
+
+
+async def get_assignment_sessions_with_analysis(assignment_id: int) -> list[dict]:
+    """Return all processed sessions for an assignment, each with their analysis."""
+    sb = get_client()
+    res = (
+        sb.table("sessions")
+        .select("id, recorded_at, session_analyses(overall_correctness)")
+        .eq("assignment_id", assignment_id)
+        .eq("processed", True)
+        .execute()
+    )
+    return res.data or []
 
 
 async def get_user_assignments(patient_id: int) -> list[dict]:

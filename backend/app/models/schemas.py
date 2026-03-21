@@ -71,6 +71,14 @@ class AssignmentCreate(BaseModel):
     pose_template_id: int
     due_date: str | None = None
     notes: str | None = None
+    required_days: int | None = None
+
+
+class AssignmentUpdate(BaseModel):
+    status: str | None = None
+    notes: str | None = None
+    due_date: str | None = None
+    required_days: int | None = None
 
 
 class AssignmentResponse(BaseModel):
@@ -82,6 +90,7 @@ class AssignmentResponse(BaseModel):
     due_date: str | None = None
     status: str | None = None
     notes: str | None = None
+    required_days: int | None = None
     pose_templates: dict | None = None  # joined pose template row
 
 

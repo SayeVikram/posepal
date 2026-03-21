@@ -20,6 +20,7 @@ const PatientsPage = () => {
   const [selectedPatient, setSelectedPatient] = useState('');
   const [selectedPose, setSelectedPose] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [requiredDays, setRequiredDays] = useState('');
 
   const { data: patients = [] } = useQuery({
     queryKey: ['therapist-patients', token],
@@ -45,6 +46,7 @@ const PatientsPage = () => {
         patient_id: Number(selectedPatient),
         pose_template_id: Number(selectedPose),
         due_date: dueDate || undefined,
+        required_days: requiredDays ? Number(requiredDays) : undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['therapist-patients', token] });
@@ -52,6 +54,7 @@ const PatientsPage = () => {
       setSelectedPatient('');
       setSelectedPose('');
       setDueDate('');
+      setRequiredDays('');
       toast.success('Pose assigned successfully!');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -101,6 +104,16 @@ const PatientsPage = () => {
               <div className="space-y-2">
                 <Label>Due Date</Label>
                 <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Required Days</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="e.g. 5 (days of exercise needed)"
+                  value={requiredDays}
+                  onChange={e => setRequiredDays(e.target.value)}
+                />
               </div>
               <Button
                 onClick={handleAssign}

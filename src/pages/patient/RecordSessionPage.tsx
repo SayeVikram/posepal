@@ -65,18 +65,27 @@ const RecordSessionPage = () => {
     enabled: !!token && !!assignmentId,
   });
 
-  // Start camera
-  useEffect(() => {
+  const startCamera = useCallback(() => {
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 }, audio: false })
       .then(stream => { if (videoRef.current) videoRef.current.srcObject = stream; })
       .catch(() => {});
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    (videoRef.current?.srcObject as MediaStream | null)?.getTracks().forEach(t => t.stop());
+    if (videoRef.current) videoRef.current.srcObject = null;
+  }, []);
+
+  // Start camera on mount for preview
+  useEffect(() => {
+    startCamera();
     return () => {
-      (videoRef.current?.srcObject as MediaStream | null)?.getTracks().forEach(t => t.stop());
+      stopCamera();
       if (timerRef.current) clearInterval(timerRef.current);
       if (scoringRef.current) clearInterval(scoringRef.current);
     };
-  }, []);
+  }, [startCamera, stopCamera]);
 
   // Real-time scoring during recording
   const captureAndScore = useCallback(async () => {
@@ -144,6 +153,7 @@ const RecordSessionPage = () => {
     const mr = new MediaRecorder(stream, { mimeType: 'video/webm' });
     mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
     mr.onstop = () => {
+      stopCamera();
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
       setRecordedBlob(blob);
       setRecordedUrl(URL.createObjectURL(blob));
@@ -290,7 +300,7 @@ const RecordSessionPage = () => {
         )}
         {phase === 'review' && (
           <>
-            <Button variant="outline" onClick={() => { setRecordedBlob(null); setRecordedUrl(null); setLiveScore(null); setAvgScore(null); setPhase('preview'); }}>
+            <Button variant="outline" onClick={() => { setRecordedBlob(null); setRecordedUrl(null); setLiveScore(null); setAvgScore(null); startCamera(); setPhase('preview'); }}>
               <RotateCcw className="mr-2 h-4 w-4" />
               Retake
             </Button>

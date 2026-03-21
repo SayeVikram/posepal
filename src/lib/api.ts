@@ -20,6 +20,13 @@ export interface PoseTemplate {
   createdAt: string;
 }
 
+export interface AssignmentSession {
+  id: number;
+  recordedAt: string;
+  processed: boolean;
+  overallCorrectness?: number;
+}
+
 export interface Assignment {
   id: number;
   therapistId: number;
@@ -28,7 +35,10 @@ export interface Assignment {
   assignedAt: string;
   dueDate: string;
   status: 'pending' | 'completed' | 'overdue';
+  notes?: string;
+  requiredDays?: number;
   pose?: PoseTemplate;
+  sessions?: AssignmentSession[];
 }
 
 export interface AreaOfConcern {
@@ -94,6 +104,17 @@ function adaptPoseTemplate(p: Record<string, unknown>): PoseTemplate {
 
 function adaptAssignment(a: Record<string, unknown>): Assignment {
   const pt = a.pose_templates as Record<string, unknown> | undefined;
+  const rawSessions = (a.sessions as Array<Record<string, unknown>>) ?? [];
+  const sessions: AssignmentSession[] = rawSessions.map(s => {
+    const analyses = (s.session_analyses as Array<Record<string, unknown>>) ?? [];
+    const correctness = analyses[0]?.overall_correctness as number | undefined;
+    return {
+      id: s.id as number,
+      recordedAt: (s.recorded_at as string) ?? '',
+      processed: (s.processed as boolean) ?? false,
+      overallCorrectness: correctness,
+    };
+  });
   return {
     id: a.id as number,
     therapistId: a.therapist_id as number,
@@ -102,7 +123,10 @@ function adaptAssignment(a: Record<string, unknown>): Assignment {
     assignedAt: (a.assigned_at as string) ?? '',
     dueDate: (a.due_date as string) ?? '',
     status: (a.status as 'pending' | 'completed' | 'overdue') ?? 'pending',
+    notes: (a.notes as string) ?? undefined,
+    requiredDays: (a.required_days as number) ?? undefined,
     pose: pt ? adaptPoseTemplate(pt) : undefined,
+    sessions: sessions.length > 0 ? sessions : undefined,
   };
 }
 
@@ -249,9 +273,23 @@ export const api = {
   // --- Therapist: assignments ---
   assign: (
     token: string,
-    data: { patient_id: number; pose_template_id: number; due_date?: string; notes?: string },
+    data: { patient_id: number; pose_template_id: number; due_date?: string; notes?: string; required_days?: number },
   ): Promise<Assignment> =>
     req<Record<string, unknown>>('POST', '/api/therapist/assign', token, data).then(
+      adaptAssignment,
+    ),
+
+  getPatientAssignments: (token: string, patientId: number): Promise<Assignment[]> =>
+    req<Record<string, unknown>[]>('GET', `/api/therapist/patient/${patientId}/assignments`, token).then(
+      list => list.map(adaptAssignment),
+    ),
+
+  updateAssignment: (
+    token: string,
+    assignmentId: number,
+    data: { status?: string; notes?: string; due_date?: string; required_days?: number },
+  ): Promise<Assignment> =>
+    req<Record<string, unknown>>('PATCH', `/api/therapist/assignment/${assignmentId}`, token, data).then(
       adaptAssignment,
     ),
 
