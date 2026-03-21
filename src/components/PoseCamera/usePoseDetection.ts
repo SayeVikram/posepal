@@ -224,13 +224,13 @@ export function usePoseDetection(
         await tf.setBackend('webgl');
         await tf.ready();
 
-        // Use SINGLEPOSE_THUNDER for better keypoint accuracy over LIGHTNING.
-        // Thunder (~100 ms/frame on GPU) is more accurate than Lightning
-        // (~50 ms/frame) for fine-grained joints (wrists, ankles) that matter
-        // most for pose classification.
+        // Must use SINGLEPOSE_LIGHTNING — the classifier was trained on
+        // keypoints extracted with singlepose-lightning/4 (192×192 input).
+        // Thunder uses a different resolution and produces different coordinate
+        // distributions, which degrades classification accuracy.
         detectorRef.current = await poseDetection.createDetector(
           poseDetection.SupportedModels.MoveNet,
-          { modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER },
+          { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING },
         );
 
         let loadedModel: tf.LayersModel | null = null;
@@ -317,15 +317,12 @@ export function usePoseDetection(
             // ---------------------------------------------------------------
             // Build the 51-element feature vector.
             //
-            // Format: [x0/W, y0/H, score0,  x1/W, y1/H, score1,  ...]
+            // Format: [y0/H, x0/W, score0,  y1/H, x1/W, score1,  ...]
             //
-            // This matches extract_features.py exactly:
-            //   features.extend([x_norm_orig, y_norm_orig, float(score)])
-            //
-            // MoveNet outputs keypoints in pixel space for the original video
-            // frame (the @tensorflow-models/pose-detection library inverts the
-            // resize_with_pad padding internally).  We normalise by the canvas
-            // dimensions which equal video.videoWidth / video.videoHeight.
+            // MoveNet's raw output_0 tensor is [y_norm, x_norm, score] per
+            // keypoint (y-first).  The training notebook flattens that tensor
+            // directly (outputs['output_0'].numpy().flatten()), so training
+            // features are y-first.  We must match that exact order here.
             // ---------------------------------------------------------------
             const keypointScores = keypoints
               .map((k) => k.score ?? 0)
@@ -338,8 +335,8 @@ export function usePoseDetection(
             const visFactor = visibilityFactor(meanKeypointScore);
 
             const features = keypoints.flatMap((k) => [
-              (k.x ?? 0) / canvas.width,
               (k.y ?? 0) / canvas.height,
+              (k.x ?? 0) / canvas.width,
               k.score ?? 0,
             ]);
 
