@@ -252,6 +252,15 @@ export function usePoseDetection(
         }
         classifierRef.current = loadedModel;
 
+        // Warmup: compile WebGL shaders and prime the inference pipeline so
+        // that the first real frame is not penalised by JIT compilation.
+        // Pattern taken from @tensorflow-models/mobilenet.
+        const warmup = tf.tidy(() =>
+          loadedModel.predict(tf.zeros([1, 51])),
+        ) as tf.Tensor;
+        await warmup.data();
+        warmup.dispose();
+
         if (!cancelled) setLoading(false);
       } catch (e) {
         if (!cancelled) {
@@ -334,10 +343,14 @@ export function usePoseDetection(
               k.score ?? 0,
             ]);
 
-            const inputTensor = tf.tensor2d([features], [1, 51]);
-            const outputTensor = classifierRef.current.predict(inputTensor) as tf.Tensor;
+            // tf.tidy() disposes all intermediate tensors (including the
+            // input) automatically — mirrors the MobileNet inference pattern.
+            const outputTensor = tf.tidy(() =>
+              classifierRef.current!.predict(
+                tf.tensor2d([features], [1, 51]),
+              ),
+            ) as tf.Tensor;
             const rawProbs = Array.from(await outputTensor.data());
-            inputTensor.dispose();
             outputTensor.dispose();
 
             // ---------------------------------------------------------------
