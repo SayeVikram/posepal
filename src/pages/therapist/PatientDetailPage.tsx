@@ -1,15 +1,38 @@
 import { useParams } from 'react-router-dom';
-import { api, mockUsers } from '@/services/mockData';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
+import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import ScoreBadge from '@/components/ScoreBadge';
 import CorrectnessTimeline from '@/components/CorrectnessTimeline';
+import { Loader2, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const PatientDetailPage = () => {
   const { patientId } = useParams();
-  const patient = mockUsers.find(u => u.id === patientId);
-  const sessions = api.getPatientSessions(patientId!).slice().reverse();
+  const { token } = useAuth();
+
+  const { data: allPatients = [], isLoading } = useQuery({
+    queryKey: ['all-patients', token],
+    queryFn: () => api.getAllPatients(token!),
+    enabled: !!token,
+  });
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ['patient-sessions', patientId, token],
+    queryFn: () => api.getPatientSessions(token!, Number(patientId)),
+    enabled: !!token && !!patientId,
+  });
+
+  const patient = allPatients.find(u => u.id === Number(patientId));
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!patient) return <p className="py-12 text-center text-muted-foreground">Patient not found.</p>;
 
@@ -31,26 +54,12 @@ const PatientDetailPage = () => {
           <motion.div key={s.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Link to={`/session/${s.id}`}>
               <Card className="shadow-card transition-shadow hover:shadow-elevated">
-                <CardContent className="space-y-3 p-4">
-                  <div className="flex items-center gap-4">
-                    <ScoreBadge score={s.analysis?.overallCorrectness || 0} />
-                    <div className="flex-1">
-                      <p className="font-display font-semibold">{s.poseName}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(s.recordedAt).toLocaleString()}</p>
-                    </div>
+                <CardContent className="flex items-center gap-4 p-4">
+                  <div className="flex-1">
+                    <p className="font-display font-semibold">{s.poseName ?? 'Session'}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(s.recordedAt).toLocaleString()}</p>
                   </div>
-                  {s.analysis && (
-                    <>
-                      <CorrectnessTimeline timeline={s.analysis.timeline} />
-                      {s.analysis.areasOfConcern.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {s.analysis.areasOfConcern.map((c, j) => (
-                            <span key={j} className="rounded-full bg-warning/10 px-2 py-0.5 text-xs text-warning">{c.bodyPart}</span>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
+                  {s.processed && <TrendingUp className="h-4 w-4 text-success" />}
                 </CardContent>
               </Card>
             </Link>

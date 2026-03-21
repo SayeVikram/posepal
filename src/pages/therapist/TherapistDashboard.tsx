@@ -1,25 +1,30 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/services/mockData';
+import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, Activity, ClipboardCheck, TrendingUp } from 'lucide-react';
+import { Users, Activity, ClipboardCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import ScoreBadge from '@/components/ScoreBadge';
 import { motion } from 'framer-motion';
 
 const TherapistDashboard = () => {
-  const { user } = useAuth();
-  const patients = api.getPatients();
-  const poses = api.getTherapistPoses(user!.id);
+  const { user, token } = useAuth();
 
-  const allSessions = patients.flatMap(p => api.getPatientSessions(p.id));
-  const avgScore = allSessions.length
-    ? allSessions.reduce((s, ses) => s + (ses.analysis?.overallCorrectness || 0), 0) / allSessions.length
-    : 0;
+  const { data: patients = [] } = useQuery({
+    queryKey: ['therapist-patients', token],
+    queryFn: () => api.getPatients(token!),
+    enabled: !!token,
+  });
+
+  const { data: poses = [] } = useQuery({
+    queryKey: ['poses', token],
+    queryFn: () => api.getPoses(token!),
+    enabled: !!token,
+  });
 
   const stats = [
     { label: 'Patients', value: patients.length, icon: Users, color: 'text-primary' },
     { label: 'Pose Templates', value: poses.length, icon: Activity, color: 'text-accent' },
-    { label: 'Sessions', value: allSessions.length, icon: ClipboardCheck, color: 'text-success' },
+    { label: 'Sessions', value: '—', icon: ClipboardCheck, color: 'text-success' },
   ];
 
   return (
@@ -43,47 +48,30 @@ const TherapistDashboard = () => {
         ))}
       </div>
 
-      {avgScore > 0 && (
-        <Card className="shadow-card">
-          <CardContent className="flex items-center gap-4 p-5">
-            <ScoreBadge score={avgScore} size="lg" />
-            <div>
-              <p className="font-display font-semibold">Patient Avg. Score</p>
-              <p className="text-sm text-muted-foreground">Across all sessions</p>
-            </div>
-            <TrendingUp className="ml-auto h-5 w-5 text-success" />
-          </CardContent>
-        </Card>
-      )}
-
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold">Recent Patient Activity</h2>
+          <h2 className="font-display text-lg font-semibold">Patients</h2>
           <Link to="/patients" className="text-sm text-primary hover:underline">View all</Link>
         </div>
         <div className="space-y-3">
-          {patients.slice(0, 3).map(p => {
-            const pSessions = api.getPatientSessions(p.id);
-            const latest = pSessions[pSessions.length - 1];
-            return (
-              <Link key={p.id} to={`/patient/${p.id}`}>
-                <Card className="shadow-card transition-shadow hover:shadow-elevated">
-                  <CardContent className="flex items-center gap-4 p-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 font-display font-bold text-primary">
-                      {p.name.charAt(0)}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {pSessions.length} session{pSessions.length !== 1 ? 's' : ''}
-                        {latest?.analysis ? ` · Last score: ${Math.round(latest.analysis.overallCorrectness * 100)}%` : ''}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
+          {patients.slice(0, 3).map(p => (
+            <Link key={p.id} to={`/patient/${p.id}`}>
+              <Card className="shadow-card transition-shadow hover:shadow-elevated">
+                <CardContent className="flex items-center gap-4 p-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 font-display font-bold text-primary">
+                    {p.name.charAt(0)}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">{p.name}</p>
+                    <p className="text-xs text-muted-foreground">{p.email}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+          {!patients.length && (
+            <p className="py-8 text-center text-muted-foreground text-sm">No patients yet. Assign a pose to get started.</p>
+          )}
         </div>
       </div>
     </div>

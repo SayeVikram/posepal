@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/services/mockData';
+import { api } from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,26 +9,49 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Activity } from 'lucide-react';
+import { Plus, Activity, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
 const PosesPage = () => {
-  const { user } = useAuth();
-  const [poses, setPoses] = useState(api.getTherapistPoses(user!.id));
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [instructions, setInstructions] = useState('');
-  const [poseClass, setPoseClass] = useState('0');
+  const [poseClass, setPoseClass] = useState('');
+
+  const { data: poses = [] } = useQuery({
+    queryKey: ['poses', token],
+    queryFn: () => api.getPoses(token!),
+    enabled: !!token,
+  });
+
+  const { data: poseClassOptions = [] } = useQuery({
+    queryKey: ['pose-classes'],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/api/pose-classes`);
+      const json = await res.json();
+      return (json.classes as string[]) ?? [];
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () => api.createPose(token!, { name, pose_class: poseClass, instructions }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['poses', token] });
+      setName('');
+      setInstructions('');
+      setPoseClass('');
+      setOpen(false);
+      toast.success('Pose template created!');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   const handleCreate = () => {
-    if (!name.trim()) return;
-    api.createPose({ therapistId: user!.id, poseName: name, expectedPoseClass: Number(poseClass), instructions });
-    setPoses(api.getTherapistPoses(user!.id));
-    setName('');
-    setInstructions('');
-    setOpen(false);
-    toast.success('Pose template created!');
+    if (!name.trim() || !poseClass) return;
+    createMutation.mutate();
   };
 
   return (
@@ -53,12 +77,14 @@ const PosesPage = () => {
               <div className="space-y-2">
                 <Label>Pose Class</Label>
                 <Select value={poseClass} onValueChange={setPoseClass}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select pose class" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="0">Pose 1 — Forward Bend</SelectItem>
-                    <SelectItem value="1">Pose 2 — Warrior</SelectItem>
-                    <SelectItem value="2">Pose 3 — Tree</SelectItem>
-                    <SelectItem value="3">Pose 4 — Bridge</SelectItem>
+                    {poseClassOptions.length > 0
+                      ? poseClassOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)
+                      : ['forward_bend', 'warrior', 'tree', 'bridge'].map(c => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))
+                    }
                   </SelectContent>
                 </Select>
               </div>
@@ -66,7 +92,14 @@ const PosesPage = () => {
                 <Label>Instructions</Label>
                 <Textarea value={instructions} onChange={e => setInstructions(e.target.value)} placeholder="Step-by-step instructions for the patient..." rows={4} />
               </div>
-              <Button onClick={handleCreate} className="w-full bg-gradient-primary text-primary-foreground hover:opacity-90">Create Template</Button>
+              <Button
+                onClick={handleCreate}
+                disabled={createMutation.isPending || !name.trim() || !poseClass}
+                className="w-full bg-gradient-primary text-primary-foreground hover:opacity-90"
+              >
+                {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create Template
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -83,7 +116,7 @@ const PosesPage = () => {
                   </div>
                   <div>
                     <p className="font-display font-semibold">{p.poseName}</p>
-                    <p className="text-xs text-muted-foreground">Class {p.expectedPoseClass + 1}</p>
+                    <p className="text-xs text-muted-foreground">{p.expectedPoseClass}</p>
                   </div>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{p.instructions}</p>
@@ -91,6 +124,9 @@ const PosesPage = () => {
             </Card>
           </motion.div>
         ))}
+        {!poses.length && (
+          <p className="col-span-2 py-12 text-center text-muted-foreground">No pose templates yet.</p>
+        )}
       </div>
     </div>
   );

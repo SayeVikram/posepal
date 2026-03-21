@@ -1,10 +1,12 @@
 import { useParams } from 'react-router-dom';
-import { api } from '@/services/mockData';
+import { useAuth } from '@/contexts/AuthContext';
+import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import ScoreBadge from '@/components/ScoreBadge';
 import CorrectnessTimeline from '@/components/CorrectnessTimeline';
-import { AlertTriangle, CheckCircle2, BarChart3 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, BarChart3, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const severityColor = {
@@ -15,13 +17,68 @@ const severityColor = {
 
 const SessionDetailPage = () => {
   const { sessionId } = useParams();
-  const session = api.getSessionAnalysis(sessionId!);
+  const { token, isTherapist } = useAuth();
 
-  if (!session || !session.analysis) {
+  const { data: session, isLoading: sessionLoading } = useQuery({
+    queryKey: ['session', sessionId, token],
+    queryFn: () => api.getSession(token!, Number(sessionId)),
+    enabled: !!token && !!sessionId,
+  });
+
+  const { data: analysis, isLoading: analysisLoading } = useQuery({
+    queryKey: ['session-analysis', sessionId, token, isTherapist],
+    queryFn: () =>
+      isTherapist
+        ? api.getTherapistSessionAnalysis(token!, Number(sessionId))
+        : api.getSessionAnalysis(token!, Number(sessionId)),
+    enabled: !!token && !!sessionId && !!session?.processed,
+  });
+
+  if (sessionLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!session) {
     return <p className="py-12 text-center text-muted-foreground">Session not found.</p>;
   }
 
-  const { analysis } = session;
+  if (!session.processed) {
+    return (
+      <div className="space-y-4">
+        <h1 className="font-display text-xl font-bold">{session.poseName ?? 'Session'}</h1>
+        <Card className="shadow-card">
+          <CardContent className="flex items-center gap-3 p-6">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <div>
+              <p className="font-medium">Processing video…</p>
+              <p className="text-sm text-muted-foreground">Analysis will appear here once complete.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (session.processingError) {
+    return (
+      <div className="space-y-4">
+        <h1 className="font-display text-xl font-bold">{session.poseName ?? 'Session'}</h1>
+        <p className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">{session.processingError}</p>
+      </div>
+    );
+  }
+
+  if (analysisLoading || !analysis) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -57,14 +114,16 @@ const SessionDetailPage = () => {
               </div>
             </div>
 
-            <div>
-              <p className="mb-2 text-sm font-medium text-muted-foreground">Correctness Timeline</p>
-              <CorrectnessTimeline timeline={analysis.timeline} />
-              <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-                <span>0s</span>
-                <span>{analysis.timeline[analysis.timeline.length - 1]?.timestamp.toFixed(0)}s</span>
+            {analysis.timeline.length > 0 && (
+              <div>
+                <p className="mb-2 text-sm font-medium text-muted-foreground">Correctness Timeline</p>
+                <CorrectnessTimeline timeline={analysis.timeline} />
+                <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+                  <span>0s</span>
+                  <span>{analysis.timeline[analysis.timeline.length - 1]?.timestamp.toFixed(0)}s</span>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>

@@ -1,13 +1,20 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/services/mockData';
+import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import ScoreBadge from '@/components/ScoreBadge';
+import { TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const SessionHistoryPage = () => {
-  const { user } = useAuth();
-  const sessions = api.getSessions(user!.id).slice().reverse();
+  const { token } = useAuth();
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ['sessions', token],
+    queryFn: () => api.getSessions(token!),
+    enabled: !!token,
+  });
 
   return (
     <div className="space-y-6">
@@ -18,13 +25,11 @@ const SessionHistoryPage = () => {
             <Link to={`/session/${s.id}`}>
               <Card className="shadow-card transition-shadow hover:shadow-elevated">
                 <CardContent className="flex items-center gap-4 p-4">
-                  <ScoreBadge score={s.analysis?.overallCorrectness || 0} />
                   <div className="flex-1">
-                    <p className="font-display font-semibold">{s.poseName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(s.recordedAt).toLocaleDateString()} · {s.analysis?.totalFrames} frames analyzed
-                    </p>
+                    <p className="font-display font-semibold">{s.poseName ?? 'Session'}</p>
+                    <p className="text-sm text-muted-foreground">{new Date(s.recordedAt).toLocaleDateString()}</p>
                   </div>
+                  {s.processed && <TrendingUp className="h-4 w-4 text-success" />}
                 </CardContent>
               </Card>
             </Link>

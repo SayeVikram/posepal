@@ -1,22 +1,30 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/services/mockData';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent } from '@/components/ui/card';
 import { ClipboardList, CheckCircle2, Clock, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ScoreBadge from '@/components/ScoreBadge';
 import { motion } from 'framer-motion';
 
 const PatientDashboard = () => {
-  const { user } = useAuth();
-  const assignments = api.getAssignments(user!.id);
-  const sessions = api.getSessions(user!.id);
+  const { user, token } = useAuth();
+
+  const { data: assignments = [] } = useQuery({
+    queryKey: ['assignments', token],
+    queryFn: () => api.getAssignments(token!),
+    enabled: !!token,
+  });
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ['sessions', token],
+    queryFn: () => api.getSessions(token!),
+    enabled: !!token,
+  });
+
   const pending = assignments.filter(a => a.status === 'pending').length;
   const completed = assignments.filter(a => a.status === 'completed').length;
-  const avgScore = sessions.length
-    ? sessions.reduce((sum, s) => sum + (s.analysis?.overallCorrectness || 0), 0) / sessions.length
-    : 0;
-
-  const recentSessions = sessions.slice(-3).reverse();
+  const recentSessions = sessions.slice(0, 3);
 
   const stats = [
     { label: 'Pending', value: pending, icon: Clock, color: 'text-warning' },
@@ -45,19 +53,6 @@ const PatientDashboard = () => {
         ))}
       </div>
 
-      {avgScore > 0 && (
-        <Card className="shadow-card">
-          <CardContent className="flex items-center gap-4 p-5">
-            <ScoreBadge score={avgScore} size="lg" />
-            <div>
-              <p className="font-display font-semibold">Average Score</p>
-              <p className="text-sm text-muted-foreground">Across {sessions.length} session{sessions.length !== 1 ? 's' : ''}</p>
-            </div>
-            <TrendingUp className="ml-auto h-5 w-5 text-success" />
-          </CardContent>
-        </Card>
-      )}
-
       {recentSessions.length > 0 && (
         <div>
           <h2 className="mb-3 font-display text-lg font-semibold">Recent Sessions</h2>
@@ -66,11 +61,11 @@ const PatientDashboard = () => {
               <Link key={s.id} to={`/session/${s.id}`}>
                 <Card className="shadow-card transition-shadow hover:shadow-elevated">
                   <CardContent className="flex items-center gap-4 p-4">
-                    <ScoreBadge score={s.analysis?.overallCorrectness || 0} size="sm" />
                     <div className="flex-1">
-                      <p className="font-medium">{s.poseName}</p>
+                      <p className="font-medium">{s.poseName ?? 'Session'}</p>
                       <p className="text-xs text-muted-foreground">{new Date(s.recordedAt).toLocaleDateString()}</p>
                     </div>
+                    {s.processed && <TrendingUp className="h-4 w-4 text-success" />}
                   </CardContent>
                 </Card>
               </Link>

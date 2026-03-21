@@ -1,49 +1,101 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, api } from '@/services/mockData';
+import { supabase } from '@/lib/supabase';
+import { api, User } from '@/lib/api';
 
 interface AuthState {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
   isTherapist: boolean;
-  login: (email: string, password: string) => boolean;
-  register: (name: string, email: string, password: string, role: 'therapist' | 'patient') => User;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, role: 'therapist' | 'patient') => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
+  // Load session on mount and subscribe to auth state changes
   useEffect(() => {
-    const stored = localStorage.getItem('pose_user');
-    if (stored) setUser(JSON.parse(stored));
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setToken(session.access_token);
+        api.getMe(session.access_token).then(setUser).catch(() => {});
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setToken(session.access_token);
+        api.getMe(session.access_token).then(setUser).catch(() => {});
+      } else {
+        setToken(null);
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = (email: string, _password: string): boolean => {
-    const found = api.login(email, _password);
-    if (found) {
-      setUser(found);
-      localStorage.setItem('pose_user', JSON.stringify(found));
-      return true;
+  const login = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (data.session) {
+      setToken(data.session.access_token);
+      const profile = await api.getMe(data.session.access_token);
+      setUser(profile);
     }
-    return false;
   };
 
-  const register = (name: string, email: string, _password: string, role: 'therapist' | 'patient') => {
-    const newUser = api.register(name, email, role);
-    setUser(newUser);
-    localStorage.setItem('pose_user', JSON.stringify(newUser));
-    return newUser;
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    role: 'therapist' | 'patient',
+  ) => {
+    // Create the user via our backend (admin API — no confirmation email).
+    const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+    const res = await fetch(`${BASE}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, role }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => 'Registration failed');
+      throw new Error(text);
+    }
+
+    // Now sign in via Supabase to get a proper session with refresh token.
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (data.session) {
+      setToken(data.session.access_token);
+      const profile = await api.getMe(data.session.access_token);
+      setUser(profile);
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('pose_user');
+    setToken(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isTherapist: user?.role === 'therapist', login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isAuthenticated: !!user,
+        isTherapist: user?.role === 'therapist',
+        login,
+        register,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/services/mockData';
+import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,9 +9,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 const AssignmentsPage = () => {
-  const { user } = useAuth();
-  const assignments = api.getAssignments(user!.id);
+  const { token } = useAuth();
   const navigate = useNavigate();
+
+  const { data: assignments = [] } = useQuery({
+    queryKey: ['assignments', token],
+    queryFn: () => api.getAssignments(token!),
+    enabled: !!token,
+  });
 
   const statusConfig = {
     pending: { label: 'Pending', variant: 'outline' as const, icon: Clock },
@@ -39,7 +45,6 @@ const AssignmentsPage = () => {
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{a.pose?.instructions}</p>
                       <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>By {a.therapist?.name}</span>
                         <span>Due {new Date(a.dueDate).toLocaleDateString()}</span>
                       </div>
                     </div>

@@ -1,4 +1,4 @@
-import { TimelineEntry } from '@/services/mockData';
+import { TimelineEntry } from '@/lib/api';
 
 interface Props {
   timeline: TimelineEntry[];

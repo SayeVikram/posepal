@@ -5,24 +5,28 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, AlertCircle } from 'lucide-react';
+import { Activity, AlertCircle, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const ok = login(email, password);
-    if (ok) {
+    setLoading(true);
+    try {
+      await login(email, password);
       navigate('/dashboard');
-    } else {
-      setError('Invalid credentials. Try sarah@clinic.com or alex@email.com');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Invalid credentials');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -53,16 +57,18 @@ const LoginPage = () => {
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
               </div>
-              <Button type="submit" className="w-full bg-gradient-primary text-primary-foreground hover:opacity-90">Sign In</Button>
+              <Button type="submit" disabled={loading} className="w-full bg-gradient-primary text-primary-foreground hover:opacity-90">
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Sign In
+              </Button>
               <p className="text-center text-sm text-muted-foreground">
                 Don't have an account?{' '}
                 <Link to="/register" className="font-medium text-primary hover:underline">Sign up</Link>
               </p>
               <div className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">
                 <p className="font-medium">Demo accounts:</p>
-                <p>Therapist: sarah@clinic.com</p>
-                <p>Patient: alex@email.com</p>
-                <p className="mt-1">Any password works</p>
+                <p>Therapist: therapist@demo.com / demo123</p>
+                <p>Patient: patient@demo.com / demo123</p>
               </div>
             </form>
           </CardContent>

@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { api, mockAssignments } from '@/services/mockData';
+import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Camera, Square, Upload, RotateCcw, Loader2 } from 'lucide-react';
@@ -9,37 +10,118 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 type Phase = 'preview' | 'countdown' | 'recording' | 'review' | 'uploading' | 'done';
 
+const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+
+const ScoreRing = ({ score }: { score: number }) => {
+  const pct = Math.round(score * 100);
+  const color = pct >= 70 ? '#22c55e' : pct >= 45 ? '#f59e0b' : '#ef4444';
+  return (
+    <div className="flex flex-col items-center">
+      <svg width="64" height="64" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="6" />
+        <circle
+          cx="32" cy="32" r="26"
+          fill="none"
+          stroke={color}
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={`${2 * Math.PI * 26}`}
+          strokeDashoffset={`${2 * Math.PI * 26 * (1 - score)}`}
+          transform="rotate(-90 32 32)"
+          style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+        />
+        <text x="32" y="37" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">{pct}%</text>
+      </svg>
+      <span className="mt-1 text-xs font-medium text-white/80">Live score</span>
+    </div>
+  );
+};
+
 const RecordSessionPage = () => {
   const { assignmentId } = useParams();
-  const { user } = useAuth();
+  const { token } = useAuth();
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const scoreHistoryRef = useRef<number[]>([]);
+  const scoringRef = useRef<number>();
+
   const [phase, setPhase] = useState<Phase>('preview');
   const [countdown, setCountdown] = useState(3);
   const [timer, setTimer] = useState(0);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<number | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [liveScore, setLiveScore] = useState<number | null>(null);
+  const [avgScore, setAvgScore] = useState<number | null>(null);
   const timerRef = useRef<number>();
 
-  const assignment = mockAssignments.find(a => a.id === assignmentId);
+  const { data: assignment } = useQuery({
+    queryKey: ['assignment', assignmentId, token],
+    queryFn: () => api.getAssignment(token!, Number(assignmentId)),
+    enabled: !!token && !!assignmentId,
+  });
 
+  // Start camera
   useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 }, audio: false })
-      .then(stream => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      })
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 }, audio: false })
+      .then(stream => { if (videoRef.current) videoRef.current.srcObject = stream; })
       .catch(() => {});
     return () => {
-      if (videoRef.current?.srcObject) {
-        (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
-      }
+      (videoRef.current?.srcObject as MediaStream | null)?.getTracks().forEach(t => t.stop());
       if (timerRef.current) clearInterval(timerRef.current);
+      if (scoringRef.current) clearInterval(scoringRef.current);
     };
   }, []);
+
+  // Real-time scoring during recording
+  const captureAndScore = useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current || !token) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    // Draw mirrored to match display
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+    ctx.restore();
+    const base64 = canvas.toDataURL('image/jpeg', 0.7).replace(/^data:image\/[^;]+;base64,/, '');
+    try {
+      const res = await fetch(`${BASE}/api/user/detect-pose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          image: base64,
+          expected_pose: assignment?.pose?.expectedPoseClass ?? null,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const score: number = data.confidence ?? 0;
+        scoreHistoryRef.current.push(score);
+        setLiveScore(score);
+        const avg = scoreHistoryRef.current.reduce((a, b) => a + b, 0) / scoreHistoryRef.current.length;
+        setAvgScore(avg);
+      }
+    } catch { /* best-effort, never crash recording */ }
+  }, [token, assignment]);
+
+  useEffect(() => {
+    if (phase === 'recording') {
+      scoreHistoryRef.current = [];
+      captureAndScore(); // first capture immediately
+      scoringRef.current = window.setInterval(captureAndScore, 2500);
+    } else {
+      if (scoringRef.current) clearInterval(scoringRef.current);
+    }
+  }, [phase, captureAndScore]);
 
   const startCountdown = () => {
     setPhase('countdown');
@@ -48,24 +130,22 @@ const RecordSessionPage = () => {
     const interval = setInterval(() => {
       c--;
       setCountdown(c);
-      if (c <= 0) {
-        clearInterval(interval);
-        startRecording();
-      }
+      if (c <= 0) { clearInterval(interval); startRecording(); }
     }, 1000);
   };
 
   const startRecording = () => {
     setPhase('recording');
     setTimer(0);
+    setLiveScore(null);
     chunksRef.current = [];
     const stream = videoRef.current?.srcObject as MediaStream;
     if (!stream) return;
-
     const mr = new MediaRecorder(stream, { mimeType: 'video/webm' });
     mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
     mr.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+      setRecordedBlob(blob);
       setRecordedUrl(URL.createObjectURL(blob));
       setPhase('review');
     };
@@ -79,25 +159,41 @@ const RecordSessionPage = () => {
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
+    if (!recordedBlob || !token || !assignmentId) return;
     setPhase('uploading');
-    setTimeout(() => {
-      const session = api.uploadSession(user!.id, assignmentId!);
+    setUploadError(null);
+    try {
+      const session = await api.uploadSession(token, Number(assignmentId), recordedBlob);
       setSessionId(session.id);
       setPhase('done');
-    }, 2500);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+      setPhase('review');
+    }
   };
 
-  const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
+  const formatTime = (s: number) =>
+    `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
     <div className="space-y-4">
       <h1 className="font-display text-xl font-bold">{assignment?.pose?.poseName || 'Record Session'}</h1>
+
       {assignment?.pose?.instructions && (
         <Card className="border-primary/20 bg-primary/5 shadow-card">
-          <CardContent className="p-3 text-sm text-secondary-foreground">{assignment.pose.instructions}</CardContent>
+          <CardContent className="p-3 text-sm text-secondary-foreground">
+            {assignment.pose.instructions}
+          </CardContent>
         </Card>
       )}
+
+      {uploadError && (
+        <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{uploadError}</p>
+      )}
+
+      {/* Hidden canvas for frame capture */}
+      <canvas ref={canvasRef} className="hidden" />
 
       <div className="relative mx-auto aspect-[4/3] max-w-lg overflow-hidden rounded-2xl bg-foreground/5">
         {phase !== 'review' && phase !== 'done' ? (
@@ -120,6 +216,7 @@ const RecordSessionPage = () => {
           )}
         </AnimatePresence>
 
+        {/* Recording indicator */}
         {phase === 'recording' && (
           <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-destructive px-3 py-1 text-sm font-medium text-destructive-foreground">
             <span className="h-2 w-2 animate-pulse rounded-full bg-destructive-foreground" />
@@ -127,13 +224,56 @@ const RecordSessionPage = () => {
           </div>
         )}
 
+        {/* Live score overlay */}
+        {phase === 'recording' && liveScore !== null && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="absolute right-3 top-3"
+          >
+            <ScoreRing score={liveScore} />
+          </motion.div>
+        )}
+
+        {/* Score bar at bottom during recording */}
+        {phase === 'recording' && liveScore !== null && (
+          <div className="absolute bottom-0 left-0 right-0 h-2 bg-black/30">
+            <motion.div
+              className="h-full"
+              style={{
+                width: `${Math.round(liveScore * 100)}%`,
+                backgroundColor: liveScore >= 0.7 ? '#22c55e' : liveScore >= 0.45 ? '#f59e0b' : '#ef4444',
+                transition: 'width 0.6s ease, background-color 0.3s ease',
+              }}
+            />
+          </div>
+        )}
+
         {phase === 'uploading' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-foreground/60 text-primary-foreground">
             <Loader2 className="h-10 w-10 animate-spin" />
-            <p className="mt-3 font-medium">Analyzing pose...</p>
+            <p className="mt-3 font-medium">Uploading & analyzing…</p>
           </div>
         )}
       </div>
+
+      {/* Avg score shown in review */}
+      {phase === 'review' && avgScore !== null && (
+        <Card className="border-primary/20 bg-primary/5 shadow-card">
+          <CardContent className="flex items-center gap-3 p-3">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white"
+              style={{ backgroundColor: avgScore >= 0.7 ? '#22c55e' : avgScore >= 0.45 ? '#f59e0b' : '#ef4444' }}
+            >
+              {Math.round(avgScore * 100)}%
+            </div>
+            <div>
+              <p className="text-sm font-medium">Session average</p>
+              <p className="text-xs text-muted-foreground">Based on {scoreHistoryRef.current.length} samples</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex justify-center gap-3">
         {phase === 'preview' && (
@@ -150,7 +290,7 @@ const RecordSessionPage = () => {
         )}
         {phase === 'review' && (
           <>
-            <Button variant="outline" onClick={() => { setRecordedUrl(null); setPhase('preview'); }}>
+            <Button variant="outline" onClick={() => { setRecordedBlob(null); setRecordedUrl(null); setLiveScore(null); setAvgScore(null); setPhase('preview'); }}>
               <RotateCcw className="mr-2 h-4 w-4" />
               Retake
             </Button>
