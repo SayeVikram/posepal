@@ -210,6 +210,9 @@ export const api = {
   getMe: (token: string): Promise<User> =>
     req<Record<string, unknown>>('GET', '/api/auth/me', token).then(adaptUser),
 
+  getUserById: (token: string, userId: number): Promise<User> =>
+    req<Record<string, unknown>>('GET', `/api/auth/user/${userId}`, token).then(adaptUser),
+
   updateProfile: (token: string, data: { name?: string }): Promise<User> =>
     req<Record<string, unknown>>('PATCH', '/api/auth/me', token, data).then(adaptUser),
 

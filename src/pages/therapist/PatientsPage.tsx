@@ -89,7 +89,7 @@ const PatientsPage = () => {
               Assign Pose
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Assign Pose to Patient</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">

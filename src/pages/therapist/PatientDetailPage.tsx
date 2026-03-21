@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Pencil, Trash2, CheckCircle2, Clock, AlertCircle, Paperclip, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -141,9 +142,12 @@ const PatientDetailPage = () => {
     <div className="space-y-6">
       {/* Patient header */}
       <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-display text-xl font-bold text-primary">
-          {patient.name.charAt(0)}
-        </div>
+        <Avatar className="h-14 w-14">
+          <AvatarImage src={patient.avatar} alt={patient.name} />
+          <AvatarFallback className="bg-primary/10 font-display text-xl font-bold text-primary">
+            {patient.name.charAt(0)}
+          </AvatarFallback>
+        </Avatar>
         <div>
           <h1 className="font-display text-2xl font-bold">{patient.name}</h1>
           <p className="text-sm text-muted-foreground">{patient.email}</p>
@@ -253,7 +257,7 @@ const PatientDetailPage = () => {
 
       {/* Edit dialog */}
       <Dialog open={!!editAssignment} onOpenChange={open => !open && setEditAssignment(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Assignment — {editAssignment?.pose?.poseName}</DialogTitle>
           </DialogHeader>

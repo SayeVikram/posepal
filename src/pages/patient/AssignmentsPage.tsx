@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/lib/api';
-import { useQuery } from '@tanstack/react-query';
+import { api, User } from '@/lib/api';
+import { useQuery, useQueries } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CheckCircle2, Clock, AlertCircle, Video } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -16,6 +18,25 @@ const AssignmentsPage = () => {
     queryFn: () => api.getAssignments(token!),
     enabled: !!token,
   });
+
+  const therapistIds = useMemo(
+    () => [...new Set(assignments.map(a => a.therapistId).filter(Boolean))],
+    [assignments],
+  );
+
+  const therapistQueries = useQueries({
+    queries: therapistIds.map(id => ({
+      queryKey: ['user', id, token],
+      queryFn: () => api.getUserById(token!, id),
+      enabled: !!token,
+    })),
+  });
+
+  const therapistMap = useMemo(() => {
+    const map: Record<number, User> = {};
+    therapistQueries.forEach((q, i) => { if (q.data) map[therapistIds[i]] = q.data; });
+    return map;
+  }, [therapistQueries, therapistIds]);
 
   const active = assignments.filter(a => a.status === 'pending' || a.status === 'overdue');
   const done = assignments.filter(a => a.status === 'completed');
@@ -48,6 +69,17 @@ const AssignmentsPage = () => {
                       )}
                     </div>
                   </div>
+                  {therapistMap[a.therapistId] && (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Avatar className="h-5 w-5">
+                        <AvatarImage src={therapistMap[a.therapistId].avatar} alt={therapistMap[a.therapistId].name} />
+                        <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
+                          {therapistMap[a.therapistId].name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-xs text-muted-foreground">Assigned by {therapistMap[a.therapistId].name}</span>
+                    </div>
+                  )}
                   {a.maxSessionsPerDay != null && (
                     <p className="text-xs text-muted-foreground">
                       Max {a.maxSessionsPerDay} session{a.maxSessionsPerDay !== 1 ? 's' : ''} per day

@@ -56,7 +56,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Link to="/profile" className="flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-accent">
+            <Link to="/profile" className="flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-primary/10">
               <Avatar className="h-7 w-7">
                 <AvatarImage src={user?.avatar} alt={user?.name} />
                 <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">

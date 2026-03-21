@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from app.models.schemas import LoginRequest, ProfileUpdate, RegisterRequest, TokenResponse, UserProfile
 from app.utils.auth import get_db_user
 from app.utils.supabase_auth import sign_in, sign_up
-from app.utils.supabase_db import update_user_profile
+from app.utils.supabase_db import get_user_by_id, update_user_profile
 from app.utils.supabase_storage import upload_avatar
 
 router = APIRouter()
@@ -37,6 +37,14 @@ async def update_me(body: ProfileUpdate, user=Depends(get_db_user)):
         return user
     updated = await update_user_profile(user["id"], **updates)
     return updated if updated else user
+
+
+@router.get("/user/{user_id}", response_model=UserProfile)
+async def get_user_profile(user_id: int, _user=Depends(get_db_user)):
+    profile = await get_user_by_id(user_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="User not found")
+    return profile
 
 
 @router.post("/upload-avatar", response_model=UserProfile)
