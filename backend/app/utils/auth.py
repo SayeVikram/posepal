@@ -7,10 +7,6 @@ from app.config import settings
 
 bearer = HTTPBearer()
 
-# ---------------------------------------------------------------------------
-# JWKS — fetched once at startup from Supabase's public endpoint.
-# Supabase newer projects use ES256 (asymmetric) instead of HS256.
-# ---------------------------------------------------------------------------
 
 def _load_jwks() -> dict:
     url = f"{settings.SUPABASE_URL}/auth/v1/.well-known/jwks.json"
@@ -22,46 +18,49 @@ def _load_jwks() -> dict:
         print(f"[auth] WARNING: failed to load JWKS from {url}: {e}")
         return {"keys": []}
 
+
 _JWKS = _load_jwks()
 
 
 def _get_public_key(kid: str | None):
-    """Return the jose-compatible key for the given kid, or the first key."""
     keys = _JWKS.get("keys", [])
     if not keys:
         return None
     if kid:
-        for k in keys:
-            if k.get("kid") == kid:
-                return jwk.construct(k)
+        for key in keys:
+            if key.get("kid") == kid:
+                return jwk.construct(key)
     return jwk.construct(keys[0])
 
 
 def _decode_token(token: str) -> dict:
     try:
-        # Peek at the header to find kid and alg without verifying yet.
         header = jwt.get_unverified_header(token)
         alg = header.get("alg", "HS256")
         kid = header.get("kid")
 
-        if alg in ("RS256", "ES256"):
+        # Newer Supabase projects issue asymmetric tokens (ES256/RS256).
+        if alg in ("ES256", "RS256"):
             key = _get_public_key(kid)
             if key is None:
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No public key available")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="No public key available",
+                )
             return jwt.decode(
                 token,
                 key,
                 algorithms=[alg],
                 options={"verify_aud": False},
             )
-        else:
-            # Fallback: HS256 with raw secret string
-            return jwt.decode(
-                token,
-                settings.SUPABASE_JWT_SECRET,
-                algorithms=[alg],
-                options={"verify_aud": False},
-            )
+
+        # Backward-compatible fallback if project still uses HS256.
+        return jwt.decode(
+            token,
+            settings.SUPABASE_JWT_SECRET,
+            algorithms=["HS256"],
+            options={"verify_aud": False},
+        )
     except JWTError as e:
         print(f"[auth] JWT decode failed: {e}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
