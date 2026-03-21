@@ -18,6 +18,14 @@ dist-ssr
 .env.*.local
 backend/*.pem
 
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Claude internal
+.claude/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
