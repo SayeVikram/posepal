@@ -2,6 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Activity, ClipboardList, Home, LogOut, Plus, Users, Video, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, isTherapist, logout } = useAuth();
@@ -54,8 +55,16 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
             ))}
           </nav>
 
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-muted-foreground sm:block">{user?.name}</span>
+          <div className="flex items-center gap-2">
+            <Link to="/profile" className="flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-accent">
+              <Avatar className="h-7 w-7">
+                <AvatarImage src={user?.avatar} alt={user?.name} />
+                <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                  {(user?.name ?? '?').split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="hidden text-sm text-muted-foreground sm:block">{user?.name}</span>
+            </Link>
             <Button variant="ghost" size="icon" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
             </Button>

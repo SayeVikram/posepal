@@ -7,6 +7,7 @@ export interface User {
   name: string;
   email: string;
   role: 'therapist' | 'patient';
+  avatar?: string;
   createdAt: string;
 }
 
@@ -38,6 +39,8 @@ export interface Assignment {
   notes?: string;
   requiredDays?: number;
   maxSessionsPerDay?: number;
+  demoVideoUrl?: string;
+  demoImageUrl?: string;
   pose?: PoseTemplate;
   sessions?: AssignmentSession[];
 }
@@ -87,6 +90,7 @@ function adaptUser(u: Record<string, unknown>): User {
     name: u.name as string,
     email: u.email as string,
     role: u.role as 'therapist' | 'patient',
+    avatar: u.avatar as string | undefined,
     createdAt: (u.created_at as string) ?? '',
   };
 }
@@ -127,6 +131,8 @@ function adaptAssignment(a: Record<string, unknown>): Assignment {
     notes: (a.notes as string) ?? undefined,
     requiredDays: (a.required_days as number) ?? undefined,
     maxSessionsPerDay: (a.max_sessions_per_day as number) ?? undefined,
+    demoVideoUrl: (a.demo_video_url as string) ?? undefined,
+    demoImageUrl: (a.demo_image_url as string) ?? undefined,
     pose: pt ? adaptPoseTemplate(pt) : undefined,
     sessions: sessions.length > 0 ? sessions : undefined,
   };
@@ -200,9 +206,36 @@ async function req<T>(
 // ---------------------------------------------------------------------------
 
 export const api = {
-  // --- Auth ---
+  // --- Auth / Profile ---
   getMe: (token: string): Promise<User> =>
     req<Record<string, unknown>>('GET', '/api/auth/me', token).then(adaptUser),
+
+  updateProfile: (token: string, data: { name?: string }): Promise<User> =>
+    req<Record<string, unknown>>('PATCH', '/api/auth/me', token, data).then(adaptUser),
+
+  uploadAvatar: async (token: string, file: File): Promise<User> => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${BASE}/api/auth/upload-avatar`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json().then(adaptUser);
+  },
+
+  uploadAssignmentDemoMedia: async (token: string, assignmentId: number, file: File): Promise<{ url: string; type: 'video' | 'image' }> => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${BASE}/api/therapist/assignment/${assignmentId}/upload-demo`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
 
   // --- Patient: assignments ---
   getAssignments: (token: string): Promise<Assignment[]> =>
@@ -278,7 +311,7 @@ export const api = {
 
   assign: (
     token: string,
-    data: { patient_id: number; pose_template_id: number; due_date?: string; notes?: string; required_days?: number; max_sessions_per_day?: number },
+    data: { patient_id: number; pose_template_id: number; due_date?: string; notes?: string; required_days?: number; max_sessions_per_day?: number; demo_video_url?: string; demo_image_url?: string },
   ): Promise<Assignment> =>
     req<Record<string, unknown>>('POST', '/api/therapist/assign', token, data).then(
       adaptAssignment,
@@ -292,7 +325,7 @@ export const api = {
   updateAssignment: (
     token: string,
     assignmentId: number,
-    data: { status?: string; notes?: string; due_date?: string; required_days?: number; max_sessions_per_day?: number },
+    data: { status?: string; notes?: string; due_date?: string; required_days?: number; max_sessions_per_day?: number; demo_video_url?: string; demo_image_url?: string },
   ): Promise<Assignment> =>
     req<Record<string, unknown>>('PATCH', `/api/therapist/assignment/${assignmentId}`, token, data).then(
       adaptAssignment,

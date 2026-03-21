@@ -73,6 +73,8 @@ class AssignmentCreate(BaseModel):
     notes: str | None = None
     required_days: int | None = None
     max_sessions_per_day: int | None = None
+    demo_video_url: str | None = None
+    demo_image_url: str | None = None
 
 
 class AssignmentUpdate(BaseModel):
@@ -81,6 +83,8 @@ class AssignmentUpdate(BaseModel):
     due_date: str | None = None
     required_days: int | None = None
     max_sessions_per_day: int | None = None
+    demo_video_url: str | None = None
+    demo_image_url: str | None = None
 
 
 class AssignmentResponse(BaseModel):
@@ -94,7 +98,17 @@ class AssignmentResponse(BaseModel):
     notes: str | None = None
     required_days: int | None = None
     max_sessions_per_day: int | None = None
+    demo_video_url: str | None = None
+    demo_image_url: str | None = None
     pose_templates: dict | None = None  # joined pose template row
+
+
+# ---------------------------------------------------------------------------
+# Profile
+# ---------------------------------------------------------------------------
+
+class ProfileUpdate(BaseModel):
+    name: str | None = None
 
 
 # ---------------------------------------------------------------------------

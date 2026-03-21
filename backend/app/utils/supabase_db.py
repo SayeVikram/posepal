@@ -57,6 +57,12 @@ async def upsert_user_from_jwt(
     return insert_res.data[0] if insert_res.data else {}
 
 
+async def update_user_profile(user_id: int, **fields) -> dict:
+    sb = get_client()
+    res = sb.table("users").update(fields).eq("id", user_id).execute()
+    return res.data[0] if res.data else {}
+
+
 async def get_all_patients() -> list[dict]:
     sb = get_client()
     res = sb.table("users").select("*").eq("role", "patient").execute()
@@ -130,9 +136,11 @@ async def create_assignment(
     notes: str | None,
     required_days: int | None = None,
     max_sessions_per_day: int | None = None,
+    demo_video_url: str | None = None,
+    demo_image_url: str | None = None,
 ) -> dict:
     sb = get_client()
-    res = sb.table("assignments").insert({
+    payload: dict = {
         "therapist_id": therapist_id,
         "patient_id": patient_id,
         "pose_template_id": pose_template_id,
@@ -140,7 +148,12 @@ async def create_assignment(
         "notes": notes,
         "required_days": required_days,
         "max_sessions_per_day": max_sessions_per_day,
-    }).execute()
+    }
+    if demo_video_url is not None:
+        payload["demo_video_url"] = demo_video_url
+    if demo_image_url is not None:
+        payload["demo_image_url"] = demo_image_url
+    res = sb.table("assignments").insert(payload).execute()
     return res.data[0] if res.data else {}
 
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from app.models.schemas import (
     AddPatientRequest,
@@ -8,6 +8,7 @@ from app.models.schemas import (
     PoseTemplateCreate,
 )
 from app.utils.auth import require_role
+from app.utils.supabase_storage import upload_demo_media
 from app.utils.supabase_db import (
     create_assignment,
     create_feedback,
@@ -55,7 +56,26 @@ async def assign_pose(body: AssignmentCreate, user=Depends(require_role("therapi
         notes=body.notes,
         required_days=body.required_days,
         max_sessions_per_day=body.max_sessions_per_day,
+        demo_video_url=body.demo_video_url,
+        demo_image_url=body.demo_image_url,
     )
+
+
+@router.post("/assignment/{assignment_id}/upload-demo")
+async def upload_assignment_demo(
+    assignment_id: int,
+    file: UploadFile = File(...),
+    user=Depends(require_role("therapist")),
+):
+    assignment = await get_assignment(assignment_id)
+    if not assignment or assignment.get("therapist_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    data = await file.read()
+    url = await upload_demo_media(data, assignment_id, file.filename or "demo", file.content_type or "application/octet-stream")
+    content_type = file.content_type or ""
+    field = "demo_video_url" if content_type.startswith("video/") else "demo_image_url"
+    updated = await update_assignment(assignment_id, **{field: url})
+    return {"url": url, "type": "video" if field == "demo_video_url" else "image", "assignment": updated}
 
 
 @router.get("/patient/{patient_id}/assignments")

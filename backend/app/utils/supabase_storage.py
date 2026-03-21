@@ -4,6 +4,8 @@ from app.utils.supabase_client import get_client
 
 VIDEO_BUCKET = "videos"
 SNIPPET_BUCKET = "snippets"
+AVATAR_BUCKET = "avatars"
+DEMO_BUCKET = "demo-media"
 
 
 async def upload_video(data: bytes, user_id: int, filename: str) -> str:
@@ -18,3 +20,17 @@ async def upload_snippet(data: bytes, session_id: int, filename: str) -> str:
     path = f"{session_id}/{uuid.uuid4()}_{filename}"
     sb.storage.from_(SNIPPET_BUCKET).upload(path, data, {"content-type": "video/mp4"})
     return sb.storage.from_(SNIPPET_BUCKET).get_public_url(path)
+
+
+async def upload_avatar(data: bytes, user_id: int, filename: str, content_type: str) -> str:
+    sb = get_client()
+    path = f"{user_id}/{uuid.uuid4()}_{filename}"
+    sb.storage.from_(AVATAR_BUCKET).upload(path, data, {"content-type": content_type})
+    return sb.storage.from_(AVATAR_BUCKET).get_public_url(path)
+
+
+async def upload_demo_media(data: bytes, assignment_id: int, filename: str, content_type: str) -> str:
+    sb = get_client()
+    path = f"{assignment_id}/{uuid.uuid4()}_{filename}"
+    sb.storage.from_(DEMO_BUCKET).upload(path, data, {"content-type": content_type})
+    return sb.storage.from_(DEMO_BUCKET).get_public_url(path)

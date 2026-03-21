@@ -15,6 +15,7 @@ import TherapistDashboard from "@/pages/therapist/TherapistDashboard";
 import PosesPage from "@/pages/therapist/PosesPage";
 import PatientsPage from "@/pages/therapist/PatientsPage";
 import PatientDetailPage from "@/pages/therapist/PatientDetailPage";
+import ProfilePage from "@/pages/ProfilePage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,7 @@ const AppRoutes = () => {
       <Route path="/poses" element={<ProtectedRoute><PosesPage /></ProtectedRoute>} />
       <Route path="/patients" element={<ProtectedRoute><PatientsPage /></ProtectedRoute>} />
       <Route path="/patient/:patientId" element={<ProtectedRoute><PatientDetailPage /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
       <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

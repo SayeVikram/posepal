@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api, Assignment } from '@/lib/api';
@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Pencil, Trash2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Loader2, Pencil, Trash2, CheckCircle2, Clock, AlertCircle, Paperclip, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
@@ -56,6 +56,9 @@ const PatientDetailPage = () => {
   const [editDueDate, setEditDueDate] = useState('');
   const [editRequiredDays, setEditRequiredDays] = useState('');
   const [editMaxPerDay, setEditMaxPerDay] = useState('');
+  const [editDemoFile, setEditDemoFile] = useState<File | null>(null);
+  const [uploadingDemo, setUploadingDemo] = useState(false);
+  const editDemoFileRef = useRef<HTMLInputElement>(null);
 
   const { data: allPatients = [], isLoading } = useQuery({
     queryKey: ['all-patients', token],
@@ -96,9 +99,10 @@ const PatientDetailPage = () => {
     setEditDueDate(a.dueDate ? a.dueDate.slice(0, 10) : '');
     setEditRequiredDays(a.requiredDays != null ? String(a.requiredDays) : '');
     setEditMaxPerDay(a.maxSessionsPerDay != null ? String(a.maxSessionsPerDay) : '');
+    setEditDemoFile(null);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editAssignment) return;
     updateMutation.mutate({
       status: editStatus || undefined,
@@ -107,6 +111,18 @@ const PatientDetailPage = () => {
       required_days: editRequiredDays ? Number(editRequiredDays) : undefined,
       max_sessions_per_day: editMaxPerDay ? Number(editMaxPerDay) : undefined,
     });
+    if (editDemoFile && token) {
+      setUploadingDemo(true);
+      try {
+        await api.uploadAssignmentDemoMedia(token, editAssignment.id, editDemoFile);
+        queryClient.invalidateQueries({ queryKey: ['patient-assignments', patientId, token] });
+      } catch {
+        toast.error('Demo media upload failed');
+      } finally {
+        setUploadingDemo(false);
+        setEditDemoFile(null);
+      }
+    }
   };
 
   const patient = allPatients.find(u => u.id === Number(patientId));
@@ -288,12 +304,41 @@ const PatientDetailPage = () => {
                 rows={3}
               />
             </div>
+            <div className="border-t border-border pt-3 space-y-2">
+              <Label>Demo Media <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              {(editAssignment?.demoVideoUrl || editAssignment?.demoImageUrl) && !editDemoFile && (
+                <p className="text-xs text-muted-foreground">
+                  Current: {editAssignment.demoVideoUrl ? 'Video' : 'Image'} attached. Upload a new file to replace it.
+                </p>
+              )}
+              <input
+                ref={editDemoFileRef}
+                type="file"
+                accept="image/*,video/*"
+                className="hidden"
+                onChange={e => setEditDemoFile(e.target.files?.[0] ?? null)}
+              />
+              {editDemoFile ? (
+                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+                  <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="flex-1 truncate">{editDemoFile.name}</span>
+                  <button onClick={() => { setEditDemoFile(null); if (editDemoFileRef.current) editDemoFileRef.current.value = ''; }}>
+                    <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                  </button>
+                </div>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => editDemoFileRef.current?.click()}>
+                  <Paperclip className="mr-2 h-4 w-4" />
+                  Attach image or video
+                </Button>
+              )}
+            </div>
             <Button
               onClick={handleSave}
-              disabled={updateMutation.isPending}
+              disabled={updateMutation.isPending || uploadingDemo}
               className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {(updateMutation.isPending || uploadingDemo) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Changes
             </Button>
           </div>

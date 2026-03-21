@@ -86,15 +86,14 @@ const RecordSessionPage = () => {
     if (videoRef.current) videoRef.current.srcObject = null;
   }, []);
 
-  // Start camera on mount for preview
+  // Cleanup only — camera starts when the user clicks "Start Recording"
   useEffect(() => {
-    startCamera();
     return () => {
       stopCamera();
       if (timerRef.current) clearInterval(timerRef.current);
       if (scoringRef.current) clearInterval(scoringRef.current);
     };
-  }, [startCamera, stopCamera]);
+  }, [stopCamera]);
 
   // Real-time scoring during recording
   const captureAndScore = useCallback(async () => {
@@ -142,6 +141,7 @@ const RecordSessionPage = () => {
   }, [phase, captureAndScore]);
 
   const startCountdown = () => {
+    startCamera();
     setPhase('countdown');
     setCountdown(3);
     let c = 3;
@@ -199,10 +199,26 @@ const RecordSessionPage = () => {
     <div className="space-y-4">
       <h1 className="font-display text-xl font-bold">{assignment?.pose?.poseName || 'Record Session'}</h1>
 
-      {assignment?.pose?.instructions && (
+      {(assignment?.demoImageUrl || assignment?.demoVideoUrl || assignment?.pose?.instructions) && (
         <Card className="border-primary/20 bg-primary/5 shadow-card">
-          <CardContent className="p-3 text-sm text-secondary-foreground">
-            {assignment.pose.instructions}
+          <CardContent className="p-3 space-y-3">
+            {assignment.demoImageUrl && (
+              <img
+                src={assignment.demoImageUrl}
+                alt="Demo"
+                className="w-full rounded-lg object-cover max-h-48"
+              />
+            )}
+            {assignment.demoVideoUrl && (
+              <video
+                src={assignment.demoVideoUrl}
+                controls
+                className="w-full rounded-lg max-h-48"
+              />
+            )}
+            {assignment.pose?.instructions && (
+              <p className="text-sm text-secondary-foreground">{assignment.pose.instructions}</p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -215,7 +231,11 @@ const RecordSessionPage = () => {
       <canvas ref={canvasRef} className="hidden" />
 
       <div className="relative mx-auto aspect-[4/3] max-w-lg overflow-hidden rounded-2xl bg-foreground/5">
-        {phase !== 'review' && phase !== 'done' ? (
+        {phase === 'preview' ? (
+          <div className="flex h-full items-center justify-center">
+            <Camera className="h-16 w-16 text-muted-foreground/20" />
+          </div>
+        ) : phase !== 'review' && phase !== 'done' ? (
           <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" style={{ transform: 'scaleX(-1)' }} />
         ) : recordedUrl ? (
           <video src={recordedUrl} controls className="h-full w-full object-cover" />
