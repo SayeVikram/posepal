@@ -33,7 +33,7 @@ async def process_session_video(
 
     try:
         frame_analyses, labels, scores, duration = _analyze_video(tmp_path)
-        video_url = await upload_video(contents, patient_id, file.filename or f"{uuid.uuid4()}.mp4")
+        video_path = await upload_video(contents, patient_id, file.filename or f"{uuid.uuid4()}.mp4")
 
         total_frames = len(frame_analyses)
         correct_frames = sum(
@@ -43,8 +43,8 @@ async def process_session_video(
 
         session = await update_session(
             session_id,
-            video_url=video_url,
-            video_path=file.filename or "",
+            video_url=None,
+            video_path=video_path,
             processed=True,
             duration_seconds=duration,
         )

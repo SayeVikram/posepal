@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
@@ -7,10 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Camera, Square, Upload, RotateCcw, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePoseDetection } from '@/components/PoseCamera/usePoseDetection';
 
 type Phase = 'preview' | 'countdown' | 'recording' | 'review' | 'uploading' | 'done';
-
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
 const ScoreRing = ({ score }: { score: number }) => {
   const pct = Math.round(score * 100);
@@ -42,11 +41,10 @@ const RecordSessionPage = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const scoreHistoryRef = useRef<number[]>([]);
-  const scoringRef = useRef<number>();
 
   const [phase, setPhase] = useState<Phase>('preview');
   const [countdown, setCountdown] = useState(3);
@@ -64,6 +62,12 @@ const RecordSessionPage = () => {
     queryFn: () => api.getAssignment(token!, Number(assignmentId)),
     enabled: !!token && !!assignmentId,
   });
+  const expectedPoseClass = assignment?.pose?.expectedPoseClass;
+  const { result: poseResult, loading: poseLoading, error: poseError } = usePoseDetection(
+    videoRef,
+    overlayCanvasRef,
+    expectedPoseClass,
+  );
 
   // Start camera
   useEffect(() => {
@@ -74,54 +78,27 @@ const RecordSessionPage = () => {
     return () => {
       (videoRef.current?.srcObject as MediaStream | null)?.getTracks().forEach(t => t.stop());
       if (timerRef.current) clearInterval(timerRef.current);
-      if (scoringRef.current) clearInterval(scoringRef.current);
     };
   }, []);
 
-  // Real-time scoring during recording
-  const captureAndScore = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || !token) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    // Draw mirrored to match display
-    ctx.save();
-    ctx.scale(-1, 1);
-    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-    ctx.restore();
-    const base64 = canvas.toDataURL('image/jpeg', 0.7).replace(/^data:image\/[^;]+;base64,/, '');
-    try {
-      const res = await fetch(`${BASE}/api/user/detect-pose`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          image: base64,
-          expected_pose: assignment?.pose?.expectedPoseClass ?? null,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const score: number = data.confidence ?? 0;
-        scoreHistoryRef.current.push(score);
-        setLiveScore(score);
-        const avg = scoreHistoryRef.current.reduce((a, b) => a + b, 0) / scoreHistoryRef.current.length;
-        setAvgScore(avg);
-      }
-    } catch { /* best-effort, never crash recording */ }
-  }, [token, assignment]);
-
   useEffect(() => {
-    if (phase === 'recording') {
-      scoreHistoryRef.current = [];
-      captureAndScore(); // first capture immediately
-      scoringRef.current = window.setInterval(captureAndScore, 2500);
-    } else {
-      if (scoringRef.current) clearInterval(scoringRef.current);
+    if (phase !== 'recording' || !poseResult) return;
+    const expected = poseResult.expectedConfidence;
+    let score = poseResult.confidence;
+    if (expected !== null) {
+      const targetMatch =
+        !!expectedPoseClass &&
+        poseResult.label.toLowerCase() === expectedPoseClass.toLowerCase();
+      // Less restrictive target scoring: blend expected-pose probability with top confidence.
+      score = targetMatch
+        ? Math.max(expected, poseResult.confidence)
+        : Math.max(expected * 0.75, poseResult.confidence * 0.25);
     }
-  }, [phase, captureAndScore]);
+    scoreHistoryRef.current.push(score);
+    setLiveScore(score);
+    const avg = scoreHistoryRef.current.reduce((a, b) => a + b, 0) / scoreHistoryRef.current.length;
+    setAvgScore(avg);
+  }, [phase, poseResult]);
 
   const startCountdown = () => {
     setPhase('countdown');
@@ -138,6 +115,8 @@ const RecordSessionPage = () => {
     setPhase('recording');
     setTimer(0);
     setLiveScore(null);
+    setAvgScore(null);
+    scoreHistoryRef.current = [];
     chunksRef.current = [];
     const stream = videoRef.current?.srcObject as MediaStream;
     if (!stream) return;
@@ -192,15 +171,19 @@ const RecordSessionPage = () => {
         <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{uploadError}</p>
       )}
 
-      {/* Hidden canvas for frame capture */}
-      <canvas ref={canvasRef} className="hidden" />
-
       <div className="relative mx-auto aspect-[4/3] max-w-lg overflow-hidden rounded-2xl bg-foreground/5">
         {phase !== 'review' && phase !== 'done' ? (
           <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" style={{ transform: 'scaleX(-1)' }} />
         ) : recordedUrl ? (
           <video src={recordedUrl} controls className="h-full w-full object-cover" />
         ) : null}
+        {phase !== 'review' && phase !== 'done' && (
+          <canvas
+            ref={overlayCanvasRef}
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            style={{ transform: 'scaleX(-1)' }}
+          />
+        )}
 
         <AnimatePresence>
           {phase === 'countdown' && (
@@ -256,6 +239,22 @@ const RecordSessionPage = () => {
           </div>
         )}
       </div>
+
+      {poseError && (
+        <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+          Real-time model error: {poseError}
+        </p>
+      )}
+      {poseLoading && (
+        <p className="text-center text-sm text-muted-foreground">Loading on-device pose models…</p>
+      )}
+      {phase === 'recording' && poseResult && (
+        <p className="text-center text-xs text-muted-foreground">
+          Predicted: {poseResult.label}
+          {expectedPoseClass ? ` | Target: ${expectedPoseClass}` : ''}
+          {` | Visibility: ${(poseResult.meanKeypointScore * 100).toFixed(0)}%`}
+        </p>
+      )}
 
       {/* Avg score shown in review */}
       {phase === 'review' && avgScore !== null && (

@@ -1,4 +1,5 @@
 from app.utils.supabase_client import get_client
+from app.utils.supabase_storage import get_delivery_url
 
 
 # ---------------------------------------------------------------------------
@@ -182,6 +183,15 @@ async def update_session(session_id: int, **fields) -> dict:
     return res.data[0] if res.data else {}
 
 
+async def _attach_video_delivery_url(session: dict) -> dict:
+    if not session:
+        return session
+    key = session.get("video_path")
+    if key:
+        session["video_url"] = await get_delivery_url(key)
+    return session
+
+
 async def get_session(session_id: int) -> dict | None:
     sb = get_client()
     res = (
@@ -191,7 +201,10 @@ async def get_session(session_id: int) -> dict | None:
         .maybe_single()
         .execute()
     )
-    return res.data if res else None
+    session = res.data if res else None
+    if not session:
+        return None
+    return await _attach_video_delivery_url(session)
 
 
 async def get_patient_sessions(patient_id: int) -> list[dict]:
@@ -203,7 +216,11 @@ async def get_patient_sessions(patient_id: int) -> list[dict]:
         .order("recorded_at", desc=True)
         .execute()
     )
-    return res.data or []
+    sessions = res.data or []
+    hydrated: list[dict] = []
+    for session in sessions:
+        hydrated.append(await _attach_video_delivery_url(session))
+    return hydrated
 
 
 async def get_user_sessions(patient_id: int) -> list[dict]:
