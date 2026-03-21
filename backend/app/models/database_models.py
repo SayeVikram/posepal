@@ -37,7 +37,8 @@ Actual tables live in Supabase; these are not SQLAlchemy models.
 # due_date          timestamptz nullable
 # status            text        not null default 'pending'  ('pending' | 'completed' | 'overdue')
 # notes             text        nullable
-# required_days     integer     nullable  (number of qualifying days needed before due_date to auto-complete)
+# required_days          integer     nullable  (number of qualifying days needed before due_date to auto-complete)
+# max_sessions_per_day   integer     nullable  (max sessions patient may record per calendar day; null = unlimited)
 
 # sessions
 # --------

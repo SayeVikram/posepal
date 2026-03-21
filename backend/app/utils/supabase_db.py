@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from app.utils.supabase_client import get_client
 
 
@@ -127,6 +129,7 @@ async def create_assignment(
     due_date: str | None,
     notes: str | None,
     required_days: int | None = None,
+    max_sessions_per_day: int | None = None,
 ) -> dict:
     sb = get_client()
     res = sb.table("assignments").insert({
@@ -136,8 +139,26 @@ async def create_assignment(
         "due_date": due_date,
         "notes": notes,
         "required_days": required_days,
+        "max_sessions_per_day": max_sessions_per_day,
     }).execute()
     return res.data[0] if res.data else {}
+
+
+async def count_sessions_today_for_assignment(assignment_id: int, patient_id: int) -> int:
+    """Count sessions recorded today (UTC) for the given assignment and patient."""
+    sb = get_client()
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow = today + timedelta(days=1)
+    res = (
+        sb.table("sessions")
+        .select("id")
+        .eq("assignment_id", assignment_id)
+        .eq("patient_id", patient_id)
+        .gte("recorded_at", today.isoformat())
+        .lt("recorded_at", tomorrow.isoformat())
+        .execute()
+    )
+    return len(res.data or [])
 
 
 async def update_assignment(assignment_id: int, **fields) -> dict:
@@ -157,6 +178,32 @@ async def get_therapist_patient_assignments(therapist_id: int, patient_id: int) 
         .execute()
     )
     return res.data or []
+
+
+async def delete_session(session_id: int, patient_id: int) -> bool:
+    """Delete a session owned by the patient. Returns True if deleted."""
+    sb = get_client()
+    res = (
+        sb.table("sessions")
+        .delete()
+        .eq("id", session_id)
+        .eq("patient_id", patient_id)
+        .execute()
+    )
+    return bool(res.data)
+
+
+async def delete_assignment(assignment_id: int, therapist_id: int) -> bool:
+    """Delete an assignment owned by the therapist (cascades to sessions). Returns True if deleted."""
+    sb = get_client()
+    res = (
+        sb.table("assignments")
+        .delete()
+        .eq("id", assignment_id)
+        .eq("therapist_id", therapist_id)
+        .execute()
+    )
+    return bool(res.data)
 
 
 async def get_assignment_sessions_with_analysis(assignment_id: int) -> list[dict]:

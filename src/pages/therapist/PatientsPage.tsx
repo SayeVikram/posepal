@@ -21,6 +21,7 @@ const PatientsPage = () => {
   const [selectedPose, setSelectedPose] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [requiredDays, setRequiredDays] = useState('');
+  const [maxSessionsPerDay, setMaxSessionsPerDay] = useState('');
 
   const { data: patients = [] } = useQuery({
     queryKey: ['therapist-patients', token],
@@ -47,6 +48,7 @@ const PatientsPage = () => {
         pose_template_id: Number(selectedPose),
         due_date: dueDate || undefined,
         required_days: requiredDays ? Number(requiredDays) : undefined,
+        max_sessions_per_day: maxSessionsPerDay ? Number(maxSessionsPerDay) : undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['therapist-patients', token] });
@@ -55,6 +57,7 @@ const PatientsPage = () => {
       setSelectedPose('');
       setDueDate('');
       setRequiredDays('');
+      setMaxSessionsPerDay('');
       toast.success('Pose assigned successfully!');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -71,7 +74,7 @@ const PatientsPage = () => {
         <h1 className="font-display text-2xl font-bold">Patients</h1>
         <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-gradient-primary text-primary-foreground hover:opacity-90">
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Send className="mr-2 h-4 w-4" />
               Assign Pose
             </Button>
@@ -105,20 +108,32 @@ const PatientsPage = () => {
                 <Label>Due Date</Label>
                 <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
               </div>
-              <div className="space-y-2">
-                <Label>Required Days</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  placeholder="e.g. 5 (days of exercise needed)"
-                  value={requiredDays}
-                  onChange={e => setRequiredDays(e.target.value)}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Required Days</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 5"
+                    value={requiredDays}
+                    onChange={e => setRequiredDays(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Max Sessions / Day</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 2"
+                    value={maxSessionsPerDay}
+                    onChange={e => setMaxSessionsPerDay(e.target.value)}
+                  />
+                </div>
               </div>
               <Button
                 onClick={handleAssign}
                 disabled={assignMutation.isPending || !selectedPatient || !selectedPose}
-                className="w-full bg-gradient-primary text-primary-foreground hover:opacity-90"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {assignMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Assign

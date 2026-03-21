@@ -73,6 +73,32 @@ async def process_session_video(
         os.unlink(tmp_path)
 
 
+async def recheck_assignment_after_session_delete(assignment_id: int) -> None:
+    """After a session is deleted, revert a completed assignment to pending if day count drops below required."""
+    assignment = await get_assignment(assignment_id)
+    if not assignment or assignment.get("status") != "completed":
+        return
+
+    required_days = assignment.get("required_days")
+    if not required_days:
+        return  # No day requirement; manual completion — leave it alone
+
+    sessions = await get_assignment_sessions_with_analysis(assignment_id)
+    qualifying_dates: set[str] = set()
+    for s in sessions:
+        analyses = s.get("session_analyses") or []
+        if isinstance(analyses, dict):
+            analyses = [analyses]
+        correctness = analyses[0].get("overall_correctness", 0) if analyses else 0
+        if correctness >= settings.CORRECTNESS_THRESHOLD:
+            recorded_at = s.get("recorded_at", "")
+            if recorded_at:
+                qualifying_dates.add(recorded_at[:10])
+
+    if len(qualifying_dates) < required_days:
+        await update_assignment(assignment_id, status="pending")
+
+
 async def _check_and_auto_complete(assignment_id: int) -> None:
     """Mark an assignment completed when enough qualifying days have been recorded."""
     assignment = await get_assignment(assignment_id)

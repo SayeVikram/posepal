@@ -12,6 +12,7 @@ from app.utils.supabase_db import (
     create_assignment,
     create_feedback,
     create_pose_template,
+    delete_assignment,
     get_all_patients,
     get_assignment,
     get_patient_sessions,
@@ -53,12 +54,27 @@ async def assign_pose(body: AssignmentCreate, user=Depends(require_role("therapi
         due_date=body.due_date,
         notes=body.notes,
         required_days=body.required_days,
+        max_sessions_per_day=body.max_sessions_per_day,
     )
 
 
 @router.get("/patient/{patient_id}/assignments")
 async def patient_assignments(patient_id: int, user=Depends(require_role("therapist"))):
     return await get_therapist_patient_assignments(user["id"], patient_id)
+
+
+@router.delete("/assignment/{assignment_id}")
+async def delete_assignment_endpoint(
+    assignment_id: int,
+    user=Depends(require_role("therapist")),
+):
+    assignment = await get_assignment(assignment_id)
+    if not assignment or assignment.get("therapist_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    deleted = await delete_assignment(assignment_id, user["id"])
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    return {"deleted": True}
 
 
 @router.patch("/assignment/{assignment_id}")

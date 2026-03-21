@@ -37,6 +37,7 @@ export interface Assignment {
   status: 'pending' | 'completed' | 'overdue';
   notes?: string;
   requiredDays?: number;
+  maxSessionsPerDay?: number;
   pose?: PoseTemplate;
   sessions?: AssignmentSession[];
 }
@@ -125,6 +126,7 @@ function adaptAssignment(a: Record<string, unknown>): Assignment {
     status: (a.status as 'pending' | 'completed' | 'overdue') ?? 'pending',
     notes: (a.notes as string) ?? undefined,
     requiredDays: (a.required_days as number) ?? undefined,
+    maxSessionsPerDay: (a.max_sessions_per_day as number) ?? undefined,
     pose: pt ? adaptPoseTemplate(pt) : undefined,
     sessions: sessions.length > 0 ? sessions : undefined,
   };
@@ -271,9 +273,12 @@ export const api = {
     ),
 
   // --- Therapist: assignments ---
+  getTodaySessionCount: (token: string, assignmentId: number): Promise<number> =>
+    req<{ count: number }>('GET', `/api/user/assignments/${assignmentId}/today-count`, token).then(r => r.count),
+
   assign: (
     token: string,
-    data: { patient_id: number; pose_template_id: number; due_date?: string; notes?: string; required_days?: number },
+    data: { patient_id: number; pose_template_id: number; due_date?: string; notes?: string; required_days?: number; max_sessions_per_day?: number },
   ): Promise<Assignment> =>
     req<Record<string, unknown>>('POST', '/api/therapist/assign', token, data).then(
       adaptAssignment,
@@ -287,7 +292,7 @@ export const api = {
   updateAssignment: (
     token: string,
     assignmentId: number,
-    data: { status?: string; notes?: string; due_date?: string; required_days?: number },
+    data: { status?: string; notes?: string; due_date?: string; required_days?: number; max_sessions_per_day?: number },
   ): Promise<Assignment> =>
     req<Record<string, unknown>>('PATCH', `/api/therapist/assignment/${assignmentId}`, token, data).then(
       adaptAssignment,
@@ -313,4 +318,12 @@ export const api = {
 
   markReviewed: (token: string, sessionId: number): Promise<unknown> =>
     req('POST', `/api/therapist/session/${sessionId}/mark-reviewed`, token),
+
+  // --- Patient: delete session ---
+  deleteSession: (token: string, sessionId: number): Promise<void> =>
+    req('DELETE', `/api/user/session/${sessionId}`, token).then(() => undefined),
+
+  // --- Therapist: delete assignment ---
+  deleteAssignment: (token: string, assignmentId: number): Promise<void> =>
+    req('DELETE', `/api/therapist/assignment/${assignmentId}`, token).then(() => undefined),
 };

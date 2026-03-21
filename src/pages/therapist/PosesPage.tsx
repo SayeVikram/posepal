@@ -60,7 +60,7 @@ const PosesPage = () => {
         <h1 className="font-display text-2xl font-bold">Pose Templates</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-gradient-primary text-primary-foreground hover:opacity-90">
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Plus className="mr-2 h-4 w-4" />
               New Pose
             </Button>
@@ -95,7 +95,7 @@ const PosesPage = () => {
               <Button
                 onClick={handleCreate}
                 disabled={createMutation.isPending || !name.trim() || !poseClass}
-                className="w-full bg-gradient-primary text-primary-foreground hover:opacity-90"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Template

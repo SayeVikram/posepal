@@ -11,7 +11,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Pencil, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Loader2, Pencil, Trash2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
@@ -44,6 +55,7 @@ const PatientDetailPage = () => {
   const [editNotes, setEditNotes] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
   const [editRequiredDays, setEditRequiredDays] = useState('');
+  const [editMaxPerDay, setEditMaxPerDay] = useState('');
 
   const { data: allPatients = [], isLoading } = useQuery({
     queryKey: ['all-patients', token],
@@ -55,6 +67,15 @@ const PatientDetailPage = () => {
     queryKey: ['patient-assignments', patientId, token],
     queryFn: () => api.getPatientAssignments(token!, Number(patientId)),
     enabled: !!token && !!patientId,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (assignmentId: number) => api.deleteAssignment(token!, assignmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patient-assignments', patientId, token] });
+      toast.success('Assignment deleted');
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const updateMutation = useMutation({
@@ -74,6 +95,7 @@ const PatientDetailPage = () => {
     setEditNotes(a.notes ?? '');
     setEditDueDate(a.dueDate ? a.dueDate.slice(0, 10) : '');
     setEditRequiredDays(a.requiredDays != null ? String(a.requiredDays) : '');
+    setEditMaxPerDay(a.maxSessionsPerDay != null ? String(a.maxSessionsPerDay) : '');
   };
 
   const handleSave = () => {
@@ -83,6 +105,7 @@ const PatientDetailPage = () => {
       notes: editNotes || undefined,
       due_date: editDueDate || undefined,
       required_days: editRequiredDays ? Number(editRequiredDays) : undefined,
+      max_sessions_per_day: editMaxPerDay ? Number(editMaxPerDay) : undefined,
     });
   };
 
@@ -146,7 +169,7 @@ const PatientDetailPage = () => {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0">
                         <Badge variant={meta.variant} className="flex items-center gap-1">
                           {meta.icon}
                           {meta.label}
@@ -154,6 +177,31 @@ const PatientDetailPage = () => {
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(a)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete assignment?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete the assignment and all its recorded sessions.
+                                This cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => deleteMutation.mutate(a.id)}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
 
@@ -209,15 +257,27 @@ const PatientDetailPage = () => {
               <Label>Due Date</Label>
               <Input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} />
             </div>
-            <div className="space-y-2">
-              <Label>Required Days</Label>
-              <Input
-                type="number"
-                min="1"
-                placeholder="Days of exercise needed"
-                value={editRequiredDays}
-                onChange={e => setEditRequiredDays(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Required Days</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="e.g. 5"
+                  value={editRequiredDays}
+                  onChange={e => setEditRequiredDays(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Max Sessions / Day</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="e.g. 2"
+                  value={editMaxPerDay}
+                  onChange={e => setEditMaxPerDay(e.target.value)}
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>
@@ -231,7 +291,7 @@ const PatientDetailPage = () => {
             <Button
               onClick={handleSave}
               disabled={updateMutation.isPending}
-              className="w-full bg-gradient-primary text-primary-foreground hover:opacity-90"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Changes

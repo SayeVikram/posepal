@@ -65,6 +65,15 @@ const RecordSessionPage = () => {
     enabled: !!token && !!assignmentId,
   });
 
+  const { data: todayCount = 0 } = useQuery({
+    queryKey: ['today-count', assignmentId, token],
+    queryFn: () => api.getTodaySessionCount(token!, Number(assignmentId)),
+    enabled: !!token && !!assignmentId && !!assignment?.maxSessionsPerDay,
+  });
+
+  const dailyLimitReached =
+    !!assignment?.maxSessionsPerDay && todayCount >= assignment.maxSessionsPerDay;
+
   const startCamera = useCallback(() => {
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 }, audio: false })
@@ -285,9 +294,21 @@ const RecordSessionPage = () => {
         </Card>
       )}
 
+      {dailyLimitReached && phase === 'preview' && (
+        <p className="rounded-lg bg-warning/10 p-3 text-sm text-warning font-medium text-center">
+          Daily limit reached — your therapist allows {assignment!.maxSessionsPerDay} session
+          {assignment!.maxSessionsPerDay !== 1 ? 's' : ''} per day for this exercise.
+          Come back tomorrow!
+        </p>
+      )}
+
       <div className="flex justify-center gap-3">
         {phase === 'preview' && (
-          <Button onClick={startCountdown} className="bg-gradient-primary text-primary-foreground hover:opacity-90">
+          <Button
+            onClick={startCountdown}
+            disabled={dailyLimitReached}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
             <Camera className="mr-2 h-4 w-4" />
             Start Recording
           </Button>
@@ -304,14 +325,14 @@ const RecordSessionPage = () => {
               <RotateCcw className="mr-2 h-4 w-4" />
               Retake
             </Button>
-            <Button onClick={handleUpload} className="bg-gradient-primary text-primary-foreground hover:opacity-90">
+            <Button onClick={handleUpload} className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Upload className="mr-2 h-4 w-4" />
               Upload & Analyze
             </Button>
           </>
         )}
         {phase === 'done' && sessionId && (
-          <Button onClick={() => navigate(`/session/${sessionId}`)} className="bg-gradient-primary text-primary-foreground hover:opacity-90">
+          <Button onClick={() => navigate(`/session/${sessionId}`)} className="bg-primary text-primary-foreground hover:bg-primary/90">
             View Results
           </Button>
         )}
