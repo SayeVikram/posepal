@@ -308,7 +308,7 @@ const PatientDetailPage = () => {
                 rows={3}
               />
             </div>
-            <div className="border-t border-border pt-3 space-y-2">
+            <div className="border-t border-border pt-3 flex flex-col gap-2">
               <Label>Demo Media <span className="text-muted-foreground font-normal">(optional)</span></Label>
               {(editAssignment?.demoVideoUrl || editAssignment?.demoImageUrl) && !editDemoFile && (
                 <p className="text-xs text-muted-foreground">

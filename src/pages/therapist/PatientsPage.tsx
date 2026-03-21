@@ -140,7 +140,7 @@ const PatientsPage = () => {
                   />
                 </div>
               </div>
-              <div className="border-t border-border pt-3 space-y-2">
+              <div className="border-t border-border pt-3 flex flex-col gap-2">
                 <Label>Demo Media <span className="text-muted-foreground font-normal">(optional)</span></Label>
                 <input
                   ref={demoFileRef}
