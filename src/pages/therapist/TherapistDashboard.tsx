@@ -22,9 +22,9 @@ const TherapistDashboard = () => {
   });
 
   const stats = [
-    { label: 'Patients',       value: patients.length, icon: Users,         color: 'text-primary',  bg: 'bg-primary/10' },
-    { label: 'Pose Templates', value: poses.length,    icon: Activity,      color: 'text-accent',   bg: 'bg-accent/10'  },
-    { label: 'Sessions',       value: '—',             icon: ClipboardCheck,color: 'text-success',  bg: 'bg-success/10' },
+    { label: 'Patients',       value: patients.length, icon: Users,         color: 'text-primary',  accent: 'border-t-primary' },
+    { label: 'Pose Templates', value: poses.length,    icon: Activity,      color: 'text-accent',   accent: 'border-t-accent'  },
+    { label: 'Sessions',       value: '—',             icon: ClipboardCheck,color: 'text-success',  accent: 'border-t-success' },
   ];
 
   return (
@@ -42,12 +42,9 @@ const TherapistDashboard = () => {
       <div className="grid grid-cols-3 gap-3">
         {stats.map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
-            <Card className="border-border/50 shadow-card">
-              <CardContent className="flex flex-col items-center gap-2 p-5">
-                <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${s.bg}`}>
-                  <s.icon className={`h-4 w-4 ${s.color}`} />
-                </div>
-                <span className="font-display text-3xl font-black">{s.value}</span>
+            <Card className={`border-border/50 shadow-card border-t-2 ${s.accent} overflow-hidden`}>
+              <CardContent className="flex flex-col items-center gap-1.5 p-4">
+                <span className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</span>
                 <span className="text-xs text-muted-foreground">{s.label}</span>
               </CardContent>
             </Card>

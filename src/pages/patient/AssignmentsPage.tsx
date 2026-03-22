@@ -39,27 +39,35 @@ const AssignmentsPage = () => {
   }, [therapistQueries, therapistIds]);
 
   const active = assignments.filter(a => a.status === 'pending' || a.status === 'overdue');
-  const done = assignments.filter(a => a.status === 'completed');
+  const done   = assignments.filter(a => a.status === 'completed');
 
   return (
-    <div className="space-y-8">
-      <h1 className="font-display text-2xl font-bold">Assigned Exercises</h1>
+    <div className="space-y-10">
+      {/* Header */}
+      <div>
+        <p className="text-sm font-medium uppercase tracking-widest text-muted-foreground">Your Exercises</p>
+        <h1 className="mt-1 font-display text-4xl font-bold text-foreground">Assignments</h1>
+      </div>
 
-      {/* Active / Overdue */}
+      {/* Active */}
       {active.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Active
-          </h2>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-warning">Active</h2>
           {active.map((a, i) => (
             <motion.div key={a.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-              <Card className={`shadow-card ${a.status === 'overdue' ? 'border-destructive/30' : ''}`}>
-                <CardContent className="p-5 space-y-3">
+              <Card className={`shadow-card overflow-hidden border-l-[3px] ${
+                  a.status === 'overdue'
+                    ? 'border-l-destructive border-destructive/20'
+                    : 'border-l-warning border-border/50'
+                }`}>
+                <CardContent className="space-y-4 p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-display text-base font-bold leading-tight">{a.pose?.poseName}</h3>
+                      <h3 className="font-display text-lg font-bold leading-tight">{a.pose?.poseName}</h3>
                       {a.dueDate && (
-                        <p className={`mt-0.5 text-xs font-medium flex items-center gap-1 ${a.status === 'overdue' ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        <p className={`mt-1 flex items-center gap-1 text-xs font-medium ${
+                          a.status === 'overdue' ? 'text-destructive' : 'text-muted-foreground'
+                        }`}>
                           {a.status === 'overdue'
                             ? <AlertCircle className="h-3 w-3" />
                             : <Clock className="h-3 w-3" />}
@@ -69,31 +77,34 @@ const AssignmentsPage = () => {
                       )}
                     </div>
                   </div>
+
                   {therapistMap[a.therapistId] && (
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <Avatar className="h-5 w-5">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-5 w-5 border border-border">
                         <AvatarImage src={therapistMap[a.therapistId].avatar} alt={therapistMap[a.therapistId].name} />
-                        <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
+                        <AvatarFallback className="bg-primary/10 text-primary text-[9px] font-bold">
                           {therapistMap[a.therapistId].name.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-xs text-muted-foreground">Assigned by {therapistMap[a.therapistId].name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        Assigned by {therapistMap[a.therapistId].name}
+                      </span>
                     </div>
                   )}
+
                   {a.maxSessionsPerDay != null && (
                     <p className="text-xs text-muted-foreground">
                       Max {a.maxSessionsPerDay} session{a.maxSessionsPerDay !== 1 ? 's' : ''} per day
                     </p>
                   )}
+
                   {a.pose?.instructions && (
-                    <p className="text-sm text-muted-foreground leading-relaxed border-t pt-3">
+                    <p className="border-t border-border/50 pt-3 text-sm leading-relaxed text-muted-foreground">
                       {a.pose.instructions}
                     </p>
                   )}
-                  <Button
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                    onClick={() => navigate(`/record/${a.id}`)}
-                  >
+
+                  <Button className="w-full" onClick={() => navigate(`/record/${a.id}`)}>
                     <Video className="mr-2 h-4 w-4" />
                     Start Session
                   </Button>
@@ -107,16 +118,14 @@ const AssignmentsPage = () => {
       {/* Completed */}
       {done.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Completed
-          </h2>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-success">Completed</h2>
           {done.map((a, i) => (
             <motion.div key={a.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-              <Card className="shadow-card border-success/20 bg-success/5">
+              <Card className="border-success/15 bg-success/5 shadow-card">
                 <CardContent className="flex items-center gap-4 p-4">
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-display font-semibold text-foreground/80">{a.pose?.poseName}</p>
+                    <p className="font-semibold text-foreground/80">{a.pose?.poseName}</p>
                     {a.dueDate && (
                       <p className="text-xs text-muted-foreground">
                         Due {new Date(a.dueDate).toLocaleDateString()}
@@ -131,7 +140,7 @@ const AssignmentsPage = () => {
       )}
 
       {!assignments.length && (
-        <p className="py-16 text-center text-muted-foreground">
+        <p className="rounded-xl border border-border/40 py-20 text-center text-muted-foreground">
           No assignments yet. Your therapist will assign exercises soon.
         </p>
       )}

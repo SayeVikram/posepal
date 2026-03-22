@@ -4,18 +4,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Link } from 'react-router-dom';
-import { TrendingUp, Trash2, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, Trash2, CheckCircle2, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
@@ -45,7 +39,6 @@ const SessionHistoryPage = () => {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  // Group sessions by assignmentId, preserving assignment order
   const assignmentMap = new Map(assignments.map(a => [a.id, a]));
   const grouped = new Map<number, Session[]>();
   for (const s of sessions) {
@@ -53,17 +46,19 @@ const SessionHistoryPage = () => {
     list.push(s);
     grouped.set(s.assignmentId, list);
   }
-  // Sort groups by most recent session first
   const groups = [...grouped.entries()].sort(
     (a, b) => new Date(b[1][0].recordedAt).getTime() - new Date(a[1][0].recordedAt).getTime(),
   );
 
   return (
-    <div className="space-y-8">
-      <h1 className="font-display text-2xl font-bold">Session History</h1>
+    <div className="space-y-10">
+      <div>
+        <p className="text-sm font-medium uppercase tracking-widest text-muted-foreground">Your Progress</p>
+        <h1 className="mt-1 font-display text-4xl font-bold text-foreground">History</h1>
+      </div>
 
       {groups.length === 0 && (
-        <p className="py-16 text-center text-muted-foreground">
+        <p className="rounded-xl border border-border/40 py-20 text-center text-muted-foreground">
           No sessions yet. Record your first exercise session!
         </p>
       )}
@@ -81,10 +76,9 @@ const SessionHistoryPage = () => {
             transition={{ delay: gi * 0.06 }}
             className="space-y-2"
           >
-            {/* Assignment header */}
             <div className="flex items-center gap-2 px-1">
               {isCompleted && <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />}
-              <h2 className="font-display font-semibold text-base">{poseName}</h2>
+              <h2 className="font-display font-bold">{poseName}</h2>
               <span className="text-xs text-muted-foreground">
                 · {groupSessions.length} session{groupSessions.length !== 1 ? 's' : ''}
               </span>
@@ -95,42 +89,33 @@ const SessionHistoryPage = () => {
               )}
             </div>
 
-            {/* Sessions in this group */}
-            <div className="space-y-1.5 pl-2 border-l-2 border-border ml-2">
+            <div className={`space-y-1.5 border-l-2 ml-2 pl-3 ${isCompleted ? 'border-success/40' : 'border-primary/30'}`}>
               {groupSessions.map(s => (
-                <Card key={s.id} className="shadow-card">
+                <Card key={s.id} className="border-border/50 shadow-card">
                   <CardContent className="flex items-center gap-3 p-3">
-                    <Link to={`/session/${s.id}`} className="flex flex-1 items-center gap-3 min-w-0">
+                    <Link to={`/session/${s.id}`} className="group flex flex-1 items-center gap-3 min-w-0">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">
-                          {new Date(s.recordedAt).toLocaleDateString(undefined, {
-                            weekday: 'short', month: 'short', day: 'numeric',
-                          })}
+                        <p className="text-sm font-semibold">
+                          {new Date(s.recordedAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {new Date(s.recordedAt).toLocaleTimeString(undefined, {
-                            hour: '2-digit', minute: '2-digit',
-                          })}
+                          {new Date(s.recordedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                       {s.processed && <TrendingUp className="h-4 w-4 shrink-0 text-success" />}
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                     </Link>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                        >
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive">
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </AlertDialogTrigger>
-                      <AlertDialogContent>
+                      <AlertDialogContent className="border-border/60 bg-card">
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete session?</AlertDialogTitle>
+                          <AlertDialogTitle className="font-display font-bold">Delete session?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will permanently delete the session and its analysis. If your
-                            assignment tracks qualifying days, this may reset its completion status.
+                            This will permanently delete the session and its analysis. This cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

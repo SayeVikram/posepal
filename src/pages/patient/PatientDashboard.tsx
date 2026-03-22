@@ -26,9 +26,9 @@ const PatientDashboard = () => {
   const recentSessions = sessions.slice(0, 3);
 
   const stats = [
-    { label: 'Pending',   value: pending,              icon: Clock,          color: 'text-warning',  bg: 'bg-warning/10' },
-    { label: 'Completed', value: completed,             icon: CheckCircle2,   color: 'text-success',  bg: 'bg-success/10' },
-    { label: 'Total',     value: assignments.length,   icon: ClipboardList,  color: 'text-primary',  bg: 'bg-primary/10' },
+    { label: 'Pending',   value: pending,              icon: Clock,          color: 'text-warning',     bg: 'bg-warning/10',     accent: 'border-t-warning' },
+    { label: 'Completed', value: completed,             icon: CheckCircle2,   color: 'text-success',     bg: 'bg-success/10',     accent: 'border-t-success' },
+    { label: 'Total',     value: assignments.length,   icon: ClipboardList,  color: 'text-primary',     bg: 'bg-primary/10',     accent: 'border-t-primary' },
   ];
 
   return (
@@ -57,7 +57,6 @@ const PatientDashboard = () => {
                   <p className="text-xs text-muted-foreground">Tap to view and start your exercises</p>
                 </div>
                 <ArrowRight className="h-4 w-4 text-primary transition-transform group-hover:translate-x-1" />
-              </div>
             </div>
           </Link>
         </motion.div>
@@ -67,12 +66,9 @@ const PatientDashboard = () => {
       <div className="grid grid-cols-3 gap-3">
         {stats.map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
-            <Card className="border-border/50 shadow-card">
-              <CardContent className="flex flex-col items-center gap-2 p-5">
-                <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${s.bg}`}>
-                  <s.icon className={`h-4 w-4 ${s.color}`} />
-                </div>
-                <span className="font-display text-3xl font-black">{s.value}</span>
+            <Card className={`border-border/50 shadow-card border-t-2 ${s.accent} overflow-hidden`}>
+              <CardContent className="flex flex-col items-center gap-1.5 p-4">
+                <span className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</span>
                 <span className="text-xs text-muted-foreground">{s.label}</span>
               </CardContent>
             </Card>
