@@ -286,19 +286,23 @@ export function usePoseDetection(
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (loading || error) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas || !detectorRef.current || !classifierRef.current) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
 
     // Reset EMA state when the detection loop restarts (e.g. component remounts)
     smoothedProbsRef.current = null;
 
+    // Read refs inside the loop each frame so the loop keeps running even
+    // before the camera has started (videoRef.current is null on preview screen).
+    // When the user starts recording and the video element mounts, the next
+    // RAF tick will pick it up automatically without needing a re-render.
     const run = async () => {
       try {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d') ?? null;
         if (
+          video &&
+          canvas &&
+          ctx &&
           video.readyState >= 2 &&
           video.videoWidth > 0 &&
           video.videoHeight > 0 &&
