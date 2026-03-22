@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, ClipboardList, Home, LogOut, Plus, Users, Video, History } from 'lucide-react';
+import { Activity, ClipboardList, Home, LogOut, Users, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -11,61 +11,77 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
   const therapistLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: Home },
-    { to: '/poses', label: 'Poses', icon: Activity },
-    { to: '/patients', label: 'Patients', icon: Users },
+    { to: '/poses',     label: 'Poses',     icon: Activity },
+    { to: '/patients',  label: 'Patients',  icon: Users },
   ];
 
   const patientLinks = [
-    { to: '/dashboard', label: 'Dashboard', icon: Home },
+    { to: '/dashboard',   label: 'Dashboard',  icon: Home },
     { to: '/assignments', label: 'Assignments', icon: ClipboardList },
-    { to: '/history', label: 'History', icon: History },
+    { to: '/history',     label: 'History',     icon: History },
   ];
 
   const links = isTherapist ? therapistLinks : patientLinks;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Top nav */}
-      <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="container flex h-16 items-center justify-between">
-          <Link to="/dashboard" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <Activity className="h-5 w-5 text-primary-foreground" />
+          {/* Logo */}
+          <Link to="/dashboard" className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-secondary">
+              <Activity className="h-4 w-4 text-primary" />
             </div>
-            <span className="font-display text-lg font-bold text-foreground">PoseTherapy</span>
+            <span className="font-display text-sm font-bold tracking-tight text-foreground">
+              PoseTherapy
+            </span>
           </Link>
 
+          {/* Desktop nav */}
           <nav className="hidden items-center gap-1 md:flex">
-            {links.map(l => (
-              <Link
-                key={l.to}
-                to={l.to}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  location.pathname === l.to ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <l.icon className="h-4 w-4" />
-                {l.label}
-              </Link>
-            ))}
+            {links.map(l => {
+              const active = location.pathname === l.to;
+              return (
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  className={`relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <l.icon className="h-4 w-4" />
+                  {l.label}
+                  {active && (
+                    <span className="absolute inset-x-2 bottom-0.5 h-px rounded-full bg-primary" />
+                  )}
+                </Link>
+              );
+            })}
           </nav>
 
-          <div className="flex items-center gap-2">
-            <Link to="/profile" className="flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-primary/10">
-              <Avatar className="h-7 w-7">
+          {/* Right side */}
+          <div className="flex items-center gap-1">
+            <Link
+              to="/profile"
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-secondary"
+            >
+              <Avatar className="h-7 w-7 border border-border">
                 <AvatarImage src={user?.avatar} alt={user?.name} />
-                <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
                   {(user?.name ?? '?').split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)}
                 </AvatarFallback>
               </Avatar>
               <span className="hidden text-sm text-muted-foreground sm:block">{user?.name}</span>
             </Link>
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              className="text-muted-foreground hover:text-foreground"
+            >
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
@@ -73,24 +89,27 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       </header>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-md md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/95 backdrop-blur-xl md:hidden">
         <div className="flex items-center justify-around py-2">
-          {links.map(l => (
-            <Link
-              key={l.to}
-              to={l.to}
-              className={`flex flex-col items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                location.pathname === l.to ? 'text-primary' : 'text-muted-foreground'
-              }`}
-            >
-              <l.icon className="h-5 w-5" />
-              {l.label}
-            </Link>
-          ))}
+          {links.map(l => {
+            const active = location.pathname === l.to;
+            return (
+              <Link
+                key={l.to}
+                to={l.to}
+                className={`flex flex-col items-center gap-1 rounded-lg px-4 py-1.5 text-xs font-medium transition-colors ${
+                  active ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                <l.icon className="h-5 w-5" />
+                {l.label}
+              </Link>
+            );
+          })}
         </div>
       </nav>
 
-      <main className="container pb-24 pt-6 md:pb-8">{children}</main>
+      <main className="container pb-24 pt-8 md:pb-10">{children}</main>
     </div>
   );
 };

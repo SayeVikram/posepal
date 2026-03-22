@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, AlertCircle, Loader2, Stethoscope, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -34,67 +33,86 @@ const RegisterPage = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <Card className="w-full max-w-md shadow-elevated border-border/50">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary">
-              <Activity className="h-7 w-7 text-primary-foreground" />
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="w-full max-w-sm"
+      >
+        {/* Logo */}
+        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-secondary">
+            <Activity className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="font-display text-2xl font-bold text-foreground">Create account</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Join PoseTherapy today</p>
+          </div>
+        </div>
+
+        {/* Form card */}
+        <div className="rounded-lg border border-border bg-card p-8 shadow-card">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {error}
+              </div>
+            )}
+
+            {/* Role selector */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-foreground/80">I am a</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {([
+                  { value: 'patient'   as const, label: 'Patient',    icon: User },
+                  { value: 'therapist' as const, label: 'Therapist',  icon: Stethoscope },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setRole(opt.value)}
+                    className={`flex items-center gap-2 rounded-xl border-2 p-3 text-sm font-semibold transition-all ${
+                      role === opt.value
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:border-border/80 hover:text-foreground'
+                    }`}
+                  >
+                    <opt.icon className="h-4 w-4" />
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <CardTitle className="font-display text-2xl">Create Account</CardTitle>
-            <CardDescription>Join PoseTherapy today</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  {error}
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label>I am a</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { value: 'patient' as const, label: 'Patient', icon: User },
-                    { value: 'therapist' as const, label: 'Therapist', icon: Stethoscope },
-                  ].map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setRole(opt.value)}
-                      className={`flex items-center gap-2 rounded-lg border-2 p-3 text-sm font-medium transition-all ${
-                        role === opt.value ? 'border-primary bg-primary/5 text-primary' : 'border-border text-muted-foreground hover:border-primary/30'
-                      }`}
-                    >
-                      <opt.icon className="h-4 w-4" />
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="Dr. Jane Smith" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
-              </div>
-              <Button type="submit" disabled={loading} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Create Account
-              </Button>
-              <p className="text-center text-sm text-muted-foreground">
-                Already have an account?{' '}
-                <Link to="/login" className="font-medium text-primary hover:underline">Sign in</Link>
-              </p>
-            </form>
-          </CardContent>
-        </Card>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="name" className="text-sm font-medium text-foreground/80">Full Name</Label>
+              <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="Dr. Jane Smith" required className="h-11" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-sm font-medium text-foreground/80">Email</Label>
+              <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required className="h-11" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-sm font-medium text-foreground/80">Password</Label>
+              <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required className="h-11" />
+            </div>
+
+            <Button type="submit" disabled={loading} size="lg" className="w-full">
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Account
+            </Button>
+
+            <p className="text-center text-sm text-muted-foreground">
+              Already have an account?{' '}
+              <Link to="/login" className="font-medium text-primary hover:text-primary/80 transition-colors">
+                Sign in
+              </Link>
+            </p>
+          </form>
+        </div>
       </motion.div>
     </div>
   );
