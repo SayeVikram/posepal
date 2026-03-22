@@ -74,9 +74,12 @@ async def get_assignment_by_id(assignment_id: int, user=Depends(get_db_user)):
 async def upload_session(
     assignment_id: int = Form(...),
     video: UploadFile = File(...),
+    frame_analyses: str | None = Form(None),
     user=Depends(get_db_user),
 ):
-    return await process_session_video(video, user["id"], assignment_id)
+    return await process_session_video(
+        video, user["id"], assignment_id, frame_analyses_json=frame_analyses
+    )
 
 
 @router.get("/sessions", response_model=list[SessionResult])

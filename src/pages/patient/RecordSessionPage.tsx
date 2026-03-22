@@ -11,6 +11,14 @@ import { usePoseDetection } from '@/components/PoseCamera/usePoseDetection';
 
 type Phase = 'preview' | 'countdown' | 'recording' | 'review' | 'uploading' | 'done';
 
+/** One sampled frame captured during live recording. */
+interface LiveFrameAnalysis {
+  ts: number;          // seconds since recording started
+  score: number;       // blended live score (shown in the UI)
+  is_correct: boolean; // true when label matches expected pose and score >= 0.5
+  label: string;       // top predicted pose class
+}
+
 const ScoreRing = ({ score }: { score: number }) => {
   const pct = Math.round(score * 100);
   const color = pct >= 70 ? '#22c55e' : pct >= 45 ? '#f59e0b' : '#ef4444';
@@ -45,6 +53,12 @@ const RecordSessionPage = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const scoreHistoryRef = useRef<number[]>([]);
+
+  // Collected per-frame accuracy data from the live TF.js model.
+  // Sent alongside the video so post-session analysis matches what the user saw.
+  const frameAnalysesRef = useRef<LiveFrameAnalysis[]>([]);
+  // Wall-clock ms at which recording started — used to compute frame timestamps.
+  const recordingStartMsRef = useRef<number>(0);
 
   const [phase, setPhase] = useState<Phase>('preview');
   const [countdown, setCountdown] = useState(3);
@@ -81,24 +95,37 @@ const RecordSessionPage = () => {
     };
   }, []);
 
+  // Collect live accuracy data and update live score display during recording.
   useEffect(() => {
     if (phase !== 'recording' || !poseResult) return;
+
     const expected = poseResult.expectedConfidence;
     let score = poseResult.confidence;
+    let is_correct = false;
+
     if (expected !== null) {
       const targetMatch =
         !!expectedPoseClass &&
         poseResult.label.toLowerCase() === expectedPoseClass.toLowerCase();
-      // Less restrictive target scoring: blend expected-pose probability with top confidence.
+      // Blended display score — same formula as before.
       score = targetMatch
         ? Math.max(expected, poseResult.confidence)
         : Math.max(expected * 0.75, poseResult.confidence * 0.25);
+      // A frame is correct only when the right pose is predicted with confidence.
+      is_correct = targetMatch && expected >= 0.5;
+    } else {
+      // No expected class configured — fall back to raw confidence.
+      is_correct = poseResult.confidence >= 0.5;
     }
+
+    const ts = (Date.now() - recordingStartMsRef.current) / 1000;
+    frameAnalysesRef.current.push({ ts, score, is_correct, label: poseResult.label });
+
     scoreHistoryRef.current.push(score);
     setLiveScore(score);
     const avg = scoreHistoryRef.current.reduce((a, b) => a + b, 0) / scoreHistoryRef.current.length;
     setAvgScore(avg);
-  }, [phase, poseResult]);
+  }, [phase, poseResult, expectedPoseClass]);
 
   const startCountdown = () => {
     setPhase('countdown');
@@ -117,6 +144,8 @@ const RecordSessionPage = () => {
     setLiveScore(null);
     setAvgScore(null);
     scoreHistoryRef.current = [];
+    frameAnalysesRef.current = [];
+    recordingStartMsRef.current = Date.now();
     chunksRef.current = [];
     const stream = videoRef.current?.srcObject as MediaStream;
     if (!stream) return;
@@ -143,7 +172,13 @@ const RecordSessionPage = () => {
     setPhase('uploading');
     setUploadError(null);
     try {
-      const session = await api.uploadSession(token, Number(assignmentId), recordedBlob);
+      const session = await api.uploadSession(
+        token,
+        Number(assignmentId),
+        recordedBlob,
+        'session.webm',
+        frameAnalysesRef.current,
+      );
       setSessionId(session.id);
       setPhase('done');
     } catch (err) {
