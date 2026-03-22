@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Activity, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
 
 const PosesPage = () => {
   const { token } = useAuth();
@@ -49,10 +51,7 @@ const PosesPage = () => {
   return (
     <div className="space-y-8">
       <div className="flex items-end justify-between">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Library</p>
-          <h1 className="mt-2 font-display text-5xl font-bold leading-none text-foreground">Pose Templates</h1>
-        </div>
+        <PageHeader eyebrow="Library" title="Pose Templates" />
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -98,7 +97,7 @@ const PosesPage = () => {
 
       <div className="grid gap-3 sm:grid-cols-2">
         {poses.map((p, i) => (
-          <motion.div key={p.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+          <motion.div key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}>
             <Card className="border-border/50 shadow-card transition-all hover:border-border hover:shadow-elevated">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -118,9 +117,13 @@ const PosesPage = () => {
           </motion.div>
         ))}
         {!poses.length && (
-          <p className="col-span-2 rounded-md border border-border py-16 text-center text-sm text-muted-foreground">
-            No pose templates yet. Create one to get started.
-          </p>
+          <EmptyState
+            className="col-span-2"
+            icon={Activity}
+            title="No pose templates yet"
+            description="A pose template defines the exercise — the AI class to detect, the name patients see, and step-by-step instructions."
+            action={{ label: 'Create your first pose →', onClick: () => setOpen(true) }}
+          />
         )}
       </div>
     </div>

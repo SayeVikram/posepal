@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CheckCircle2, Clock, AlertCircle, Video } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import PageHeader from '@/components/PageHeader';
 
 const AssignmentsPage = () => {
   const { token } = useAuth();
@@ -43,11 +44,7 @@ const AssignmentsPage = () => {
 
   return (
     <div className="space-y-12">
-      {/* Header */}
-      <div>
-        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Your Exercises</p>
-        <h1 className="mt-2 font-display text-5xl font-bold leading-none text-foreground">Assignments</h1>
-      </div>
+      <PageHeader eyebrow="Your Exercises" title="Assignments" />
 
       {/* Active */}
       {active.length > 0 && (
@@ -82,7 +79,7 @@ const AssignmentsPage = () => {
                     <div className="flex items-center gap-2">
                       <Avatar className="h-5 w-5 border border-border">
                         <AvatarImage src={therapistMap[a.therapistId].avatar} alt={therapistMap[a.therapistId].name} />
-                        <AvatarFallback className="bg-primary/10 text-primary text-[9px] font-bold">
+                        <AvatarFallback className="bg-secondary text-foreground text-[9px] font-bold">
                           {therapistMap[a.therapistId].name.charAt(0)}
                         </AvatarFallback>
                       </Avatar>

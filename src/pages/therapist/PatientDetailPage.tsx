@@ -162,7 +162,7 @@ const PatientDetailPage = () => {
             const pct = a.requiredDays ? Math.min(100, Math.round((days / a.requiredDays) * 100)) : null;
 
             return (
-              <motion.div key={a.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+              <motion.div key={a.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}>
                 <Card className="border-border/50 shadow-card">
                   <CardContent className="space-y-3 p-4">
                     <div className="flex items-start justify-between gap-2">
@@ -207,8 +207,8 @@ const PatientDetailPage = () => {
                     {pct !== null && (
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                         <div
-                          className="h-full rounded-full transition-all"
-                          style={{ width: `${pct}%`, backgroundColor: pct >= 100 ? '#22c55e' : pct >= 60 ? '#f59e0b' : '#64748b' }}
+                          className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-success' : pct >= 60 ? 'bg-warning' : 'bg-muted-foreground'}`}
+                          style={{ width: `${pct}%` }}
                         />
                       </div>
                     )}

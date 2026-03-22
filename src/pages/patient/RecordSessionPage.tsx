@@ -19,7 +19,7 @@ interface FrameSample {
 
 const ScoreRing = ({ score }: { score: number }) => {
   const pct = Math.round(score * 100);
-  const color = pct >= 70 ? '#22c55e' : pct >= 45 ? '#f59e0b' : '#ef4444';
+  const color = pct >= 70 ? 'hsl(var(--success))' : pct >= 45 ? 'hsl(var(--warning))' : 'hsl(var(--destructive))';
   return (
     <div className="flex flex-col items-center">
       <svg width="64" height="64" viewBox="0 0 64 64">
@@ -243,7 +243,7 @@ const RecordSessionPage = () => {
         <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{uploadError}</p>
       )}
 
-      <div className="relative mx-auto aspect-[4/3] max-w-lg overflow-hidden rounded-2xl bg-foreground/5">
+      <div className="relative mx-auto aspect-[4/3] max-w-lg overflow-hidden rounded-lg bg-foreground/5">
         {phase === 'preview' ? (
           <div className="flex h-full items-center justify-center">
             <Camera className="h-16 w-16 text-muted-foreground/20" />
@@ -298,7 +298,7 @@ const RecordSessionPage = () => {
               className="h-full"
               style={{
                 width: `${Math.round(liveScore * 100)}%`,
-                backgroundColor: liveScore >= 0.7 ? '#22c55e' : liveScore >= 0.45 ? '#f59e0b' : '#ef4444',
+                backgroundColor: liveScore >= 0.7 ? 'hsl(var(--success))' : liveScore >= 0.45 ? 'hsl(var(--warning))' : 'hsl(var(--destructive))',
                 transition: 'width 0.6s ease, background-color 0.3s ease',
               }}
             />
@@ -333,8 +333,7 @@ const RecordSessionPage = () => {
         <Card className="border-primary/20 bg-primary/5 shadow-card">
           <CardContent className="flex items-center gap-3 p-3">
             <div
-              className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white"
-              style={{ backgroundColor: avgScore >= 0.7 ? '#22c55e' : avgScore >= 0.45 ? '#f59e0b' : '#ef4444' }}
+              className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${avgScore >= 0.7 ? 'bg-success text-success-foreground' : avgScore >= 0.45 ? 'bg-warning text-warning-foreground' : 'bg-destructive text-destructive-foreground'}`}
             >
               {Math.round(avgScore * 100)}%
             </div>

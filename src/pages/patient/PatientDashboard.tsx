@@ -2,9 +2,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
 import { useCountUp } from '@/hooks/useCountUp';
-import { ClipboardList, TrendingUp, ArrowRight } from 'lucide-react';
+import { ClipboardList, TrendingUp, ArrowRight, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import PageHeader from '@/components/PageHeader';
+import SectionHeader from '@/components/SectionHeader';
 
 const PatientDashboard = () => {
   const { user, token } = useAuth();
@@ -38,13 +40,12 @@ const PatientDashboard = () => {
   return (
     <div className="space-y-12">
       {/* Hero */}
-      <div>
-        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Overview</p>
-        <h1 className="mt-2 font-display text-6xl font-bold text-foreground leading-none tracking-tight">
-          Hey, {user?.name?.split(' ')[0]}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">Here's your therapy progress</p>
-      </div>
+      <PageHeader
+        eyebrow="Overview"
+        title={`Hey, ${user?.name?.split(' ')[0]}`}
+        subtitle="Here's your therapy progress"
+        size="lg"
+      />
 
       {/* Stats strip */}
       <div className="flex divide-x divide-border border-y border-border py-6">
@@ -55,6 +56,28 @@ const PatientDashboard = () => {
           </div>
         ))}
       </div>
+
+      {/* First-time empty state — no assignments at all */}
+      {assignments.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="rounded-md border border-border"
+        >
+          <div className="flex items-start gap-4 p-5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-secondary">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Waiting for your first assignment</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Your therapist will assign exercises to you shortly. Once assigned, they'll appear here and on the Assignments page — ready to record whenever you are.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Pending call-to-action */}
       {pending > 0 && (
@@ -77,12 +100,7 @@ const PatientDashboard = () => {
       {/* Recent sessions */}
       {recentSessions.length > 0 && (
         <div>
-          <div className="mb-4 flex items-baseline justify-between">
-            <h2 className="font-display text-xl font-bold">Recent Sessions</h2>
-            <Link to="/history" className="text-xs text-primary hover:text-primary/80 transition-colors">
-              View all →
-            </Link>
-          </div>
+          <SectionHeader title="Recent Sessions" href="/history" />
           <div className="divide-y divide-border rounded-md border border-border">
             {recentSessions.map((s, i) => (
               <Link key={s.id} to={`/session/${s.id}`}>

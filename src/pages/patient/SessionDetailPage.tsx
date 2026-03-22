@@ -115,7 +115,7 @@ const SessionDetailPage = () => {
   const lowAccuracySegments = getLowAccuracySegments(analysis.timeline);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Hero score */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -191,7 +191,7 @@ const SessionDetailPage = () => {
 
       {/* Low-accuracy segments */}
       {lowAccuracySegments.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
           <Card className="border-destructive/20 shadow-card">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base font-bold">
@@ -225,7 +225,7 @@ const SessionDetailPage = () => {
 
       {/* Areas of concern */}
       {analysis.areasOfConcern.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
           <Card className="border-border/50 shadow-card">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base font-bold">

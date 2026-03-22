@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Camera, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import PageHeader from '@/components/PageHeader';
 
 const ProfilePage = () => {
   const { user, token, setUser } = useAuth();
@@ -59,10 +60,7 @@ const ProfilePage = () => {
 
   return (
     <div className="mx-auto max-w-lg space-y-8">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Account</p>
-        <h1 className="mt-2 font-display text-5xl font-bold leading-none text-foreground">Profile</h1>
-      </div>
+      <PageHeader eyebrow="Account" title="Profile" />
 
       {/* Avatar + identity */}
       <Card className="border-border/50 shadow-card">

@@ -12,6 +12,8 @@ import { Link } from 'react-router-dom';
 import { TrendingUp, Trash2, CheckCircle2, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
 
 const SessionHistoryPage = () => {
   const { token } = useAuth();
@@ -52,15 +54,14 @@ const SessionHistoryPage = () => {
 
   return (
     <div className="space-y-12">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Your Progress</p>
-        <h1 className="mt-2 font-display text-5xl font-bold leading-none text-foreground">History</h1>
-      </div>
+      <PageHeader eyebrow="Your Progress" title="History" />
 
       {groups.length === 0 && (
-        <p className="rounded-md border border-border py-16 text-center text-sm text-muted-foreground">
-          No sessions yet. Record your first exercise session!
-        </p>
+        <EmptyState
+          title="No sessions yet"
+          description="Record a session from the Assignments page and your history will appear here, grouped by exercise."
+          action={{ label: 'Go to Assignments →', href: '/assignments' }}
+        />
       )}
 
       {groups.map(([assignmentId, groupSessions], gi) => {
@@ -71,8 +72,8 @@ const SessionHistoryPage = () => {
         return (
           <motion.section
             key={assignmentId}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ delay: gi * 0.06 }}
             className="space-y-2"
           >

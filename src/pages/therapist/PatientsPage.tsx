@@ -12,6 +12,8 @@ import { Link } from 'react-router-dom';
 import { Send, Loader2, Paperclip, X, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
 
 const PatientsPage = () => {
   const { token } = useAuth();
@@ -72,10 +74,7 @@ const PatientsPage = () => {
   return (
     <div className="space-y-8">
       <div className="flex items-end justify-between">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Manage</p>
-          <h1 className="mt-2 font-display text-5xl font-bold leading-none text-foreground">Patients</h1>
-        </div>
+        <PageHeader eyebrow="Manage" title="Patients" />
         <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -178,9 +177,15 @@ const PatientsPage = () => {
           ))}
         </div>
       ) : (
-        <p className="rounded-md border border-border py-16 text-center text-sm text-muted-foreground">
-          No patients yet. Assign a pose to add a patient.
-        </p>
+        <EmptyState
+          title="No patients yet"
+          description="Patients appear here once you assign them a pose. Use the Assign Pose button above — just make sure the patient has already registered an account."
+          action={{
+            label: poses.length === 0 ? 'Create a pose template first' : 'Assign your first pose →',
+            onClick: () => setAssignOpen(true),
+            disabled: poses.length === 0,
+          }}
+        />
       )}
     </div>
   );

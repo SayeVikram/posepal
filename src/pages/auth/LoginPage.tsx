@@ -32,14 +32,14 @@ const LoginPage = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: 'easeOut' }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="w-full max-w-sm"
       >
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-secondary">
+          <div className="flex h-12 w-12 items-center justify-center rounded-md border border-border bg-secondary">
             <Activity className="h-5 w-5 text-primary" />
           </div>
           <div>
