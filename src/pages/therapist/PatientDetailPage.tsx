@@ -17,9 +17,10 @@ import {
   AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Pencil, Trash2, CheckCircle2, Clock, AlertCircle, Paperclip, X } from 'lucide-react';
+import { Loader2, Pencil, Trash2, CheckCircle2, Clock, AlertCircle, Paperclip, X, ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import SessionVideoPlayer from '@/components/SessionVideoPlayer';
 
 const CORRECTNESS_THRESHOLD = 0.5;
 
@@ -54,6 +55,8 @@ const PatientDetailPage = () => {
   const [editDemoFile, setEditDemoFile] = useState<File | null>(null);
   const [uploadingDemo, setUploadingDemo] = useState(false);
   const editDemoFileRef = useRef<HTMLInputElement>(null);
+  const [expandedAssignment, setExpandedAssignment] = useState<number | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
 
   const { data: allPatients = [], isLoading } = useQuery({
     queryKey: ['all-patients', token],
@@ -65,6 +68,12 @@ const PatientDetailPage = () => {
     queryKey: ['patient-assignments', patientId, token],
     queryFn: () => api.getPatientAssignments(token!, Number(patientId)),
     enabled: !!token && !!patientId,
+  });
+
+  const { data: selectedSession, isLoading: sessionLoading } = useQuery({
+    queryKey: ['therapist-session', selectedSessionId, token],
+    queryFn: () => api.getTherapistSession(token!, selectedSessionId!),
+    enabled: !!token && !!selectedSessionId,
   });
 
   const deleteMutation = useMutation({
@@ -214,6 +223,41 @@ const PatientDetailPage = () => {
                     )}
 
                     {a.notes && <p className="border-t border-border/50 pt-2 text-xs italic text-muted-foreground">{a.notes}</p>}
+
+                    {/* Sessions list */}
+                    {(a.sessions?.length ?? 0) > 0 && (
+                      <div className="border-t border-border/50 pt-2">
+                        <button
+                          className="flex w-full items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => setExpandedAssignment(expandedAssignment === a.id ? null : a.id)}
+                        >
+                          <span>{a.sessions!.length} session{a.sessions!.length !== 1 ? 's' : ''} recorded</span>
+                          {expandedAssignment === a.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        </button>
+                        {expandedAssignment === a.id && (
+                          <div className="mt-2 space-y-1">
+                            {a.sessions!.map(s => (
+                              <button
+                                key={s.id}
+                                className="flex w-full items-center justify-between rounded-md border border-border/50 bg-secondary/30 px-3 py-2 text-xs hover:bg-secondary/60 transition-colors"
+                                onClick={() => setSelectedSessionId(s.id)}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Play className="h-3 w-3 text-primary" />
+                                  <span>{new Date(s.recordedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                                {s.processed && s.overallCorrectness != null && (
+                                  <span className={`font-medium ${s.overallCorrectness >= CORRECTNESS_THRESHOLD ? 'text-success' : 'text-destructive'}`}>
+                                    {Math.round(s.overallCorrectness * 100)}%
+                                  </span>
+                                )}
+                                {!s.processed && <span className="text-muted-foreground">Processing…</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </motion.div>
@@ -226,6 +270,31 @@ const PatientDetailPage = () => {
           )}
         </div>
       )}
+
+      {/* Session video dialog */}
+      <Dialog open={!!selectedSessionId} onOpenChange={open => !open && setSelectedSessionId(null)}>
+        <DialogContent className="max-w-2xl border-border/60 bg-card">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl font-bold">Session Recording</DialogTitle>
+          </DialogHeader>
+          {sessionLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : selectedSession?.videoUrl ? (
+            <div className="space-y-3">
+              <SessionVideoPlayer url={selectedSession.videoUrl} />
+              <p className="text-sm text-muted-foreground">
+                {selectedSession.recordedAt ? new Date(selectedSession.recordedAt).toLocaleString() : ''}
+              </p>
+            </div>
+          ) : (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              {selectedSession && !selectedSession.videoUrl ? 'No video available for this session.' : 'Failed to load session.'}
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit dialog */}
       <Dialog open={!!editAssignment} onOpenChange={open => !open && setEditAssignment(null)}>

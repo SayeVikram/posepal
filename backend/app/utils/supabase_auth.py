@@ -25,6 +25,7 @@ def _admin_create_user(email: str, password: str, name: str, role: str) -> str |
         },
         timeout=20,
     )
+    print(f"[register] admin API status={resp.status_code} body={resp.text[:300]}")
     if resp.status_code != 200:
         return None
     return (resp.json() or {}).get("id")
@@ -42,6 +43,7 @@ def _public_sign_up(email: str, password: str, name: str, role: str) -> str | No
         },
         timeout=20,
     )
+    print(f"[register] public signup status={resp.status_code} body={resp.text[:300]}")
     if resp.status_code not in (200, 201):
         return None
     user = (resp.json() or {}).get("user") or {}
