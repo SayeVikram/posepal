@@ -100,29 +100,29 @@ const RecordSessionPage = () => {
     if (phase !== 'recording' || !poseResult) return;
 
     const expected = poseResult.expectedConfidence;
-    let score = poseResult.confidence;
-    let is_correct = false;
+    let displayScore: number;
 
     if (expected !== null) {
       const targetMatch =
         !!expectedPoseClass &&
         poseResult.label.toLowerCase() === expectedPoseClass.toLowerCase();
-      // Blended display score — same formula as before.
-      score = targetMatch
+      // Blended display score — same formula shown in the live ring.
+      displayScore = targetMatch
         ? Math.max(expected, poseResult.confidence)
         : Math.max(expected * 0.75, poseResult.confidence * 0.25);
-      // A frame is correct only when the right pose is predicted with confidence.
-      is_correct = targetMatch && expected >= 0.5;
     } else {
-      // No expected class configured — fall back to raw confidence.
-      is_correct = poseResult.confidence >= 0.5;
+      displayScore = poseResult.confidence;
     }
 
-    const ts = (Date.now() - recordingStartMsRef.current) / 1000;
-    frameAnalysesRef.current.push({ ts, score, is_correct, label: poseResult.label });
+    // is_correct mirrors EXACTLY what the live ring shows the user.
+    // If the ring was < 50% this frame → incorrect. No separate logic.
+    const is_correct = displayScore >= 0.5;
 
-    scoreHistoryRef.current.push(score);
-    setLiveScore(score);
+    const ts = (Date.now() - recordingStartMsRef.current) / 1000;
+    frameAnalysesRef.current.push({ ts, score: displayScore, is_correct, label: poseResult.label });
+
+    scoreHistoryRef.current.push(displayScore);
+    setLiveScore(displayScore);
     const avg = scoreHistoryRef.current.reduce((a, b) => a + b, 0) / scoreHistoryRef.current.length;
     setAvgScore(avg);
   }, [phase, poseResult, expectedPoseClass]);

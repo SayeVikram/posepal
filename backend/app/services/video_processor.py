@@ -55,10 +55,9 @@ async def process_session_video(
         video_path = await upload_video(contents, patient_id, file.filename or f"{uuid.uuid4()}.mp4")
 
         total_frames = len(frame_analyses)
-        correct_frames = sum(
-            1 for f in frame_analyses
-            if f.get("is_correct", f.get("score", 0) >= settings.CORRECTNESS_THRESHOLD)
-        )
+        # Use the explicit is_correct flag stored by whichever path ran.
+        # bool(False) == 0, bool(True) == 1 — works correctly for JSON booleans.
+        correct_frames = sum(1 for f in frame_analyses if f.get("is_correct") is True)
         overall_correctness = correct_frames / total_frames if total_frames > 0 else 0.0
 
         session = await update_session(
@@ -113,11 +112,13 @@ def _analyze_video(path: str, expected_pose_class: str | None) -> tuple[list, fl
             kp = extract_keypoints(frame)
             if kp is not None:
                 label, score = classify_pose(kp)
-                # A frame is correct only when the classifier predicts the
-                # right pose AND is confident enough.
+                # Correctness requires both a confident prediction AND the
+                # right label.  If we don't know the expected pose we cannot
+                # mark any frame as correct (avoids inflated 100% scores).
                 is_correct = (
-                    score >= settings.CORRECTNESS_THRESHOLD
-                    and (expected_pose_class is None or label == expected_pose_class)
+                    expected_pose_class is not None
+                    and score >= settings.CORRECTNESS_THRESHOLD
+                    and label == expected_pose_class
                 )
                 frame_analyses.append({
                     "frame": frame_idx,
