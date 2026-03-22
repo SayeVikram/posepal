@@ -74,6 +74,15 @@ async def add_patient(body: AddPatientRequest, user=Depends(require_role("therap
     return patient
 
 
+@router.get("/session/{session_id}", response_model=None)
+async def get_session_detail(session_id: int, user=Depends(require_role("therapist"))):
+    """Return session row (with fresh signed video URL) for therapist replay."""
+    session = await get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
 @router.get("/sessions/{patient_id}")
 async def patient_sessions(patient_id: int, user=Depends(require_role("therapist"))):
     return await get_patient_sessions(patient_id)

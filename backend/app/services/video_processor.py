@@ -86,7 +86,12 @@ def _analyze_video(path: str) -> tuple[list, list, list, float]:
                 label, score = classify_pose(kp)
                 labels.append(label)
                 scores.append(score)
-                frame_analyses.append({"frame": frame_idx, "label": label, "score": score})
+                frame_analyses.append({
+                    "frame": frame_idx,
+                    "label": label,
+                    "score": score,
+                    "ts": round(frame_idx / fps, 3),  # actual video timestamp in seconds
+                })
         frame_idx += 1
 
     cap.release()

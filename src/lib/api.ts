@@ -107,12 +107,18 @@ function adaptAssignment(a: Record<string, unknown>): Assignment {
 }
 
 const CORRECTNESS_THRESHOLD = 0.5;
-const ASSUMED_FPS = 5; // frame_interval=5, so sampled frame index / (native_fps/5)
+// Legacy fallback: approximate fps used before real timestamps were stored.
+// New recordings include a `ts` field (actual seconds) so this is rarely needed.
+const LEGACY_FRAME_INTERVAL = 5;
+const LEGACY_NATIVE_FPS = 30;
 
 function adaptAnalysis(a: Record<string, unknown>): SessionAnalysis {
-  const frameAnalyses = (a.frame_analyses as Array<{ frame: number; score: number }>) ?? [];
+  const frameAnalyses = (
+    a.frame_analyses as Array<{ frame: number; score: number; ts?: number }>
+  ) ?? [];
   const timeline: TimelineEntry[] = frameAnalyses.map(f => ({
-    timestamp: f.frame / ASSUMED_FPS,
+    // Prefer the real timestamp stored by the backend; fall back to estimate.
+    timestamp: f.ts ?? f.frame / LEGACY_NATIVE_FPS,
     isCorrect: f.score >= CORRECTNESS_THRESHOLD,
   }));
   return {
@@ -262,6 +268,13 @@ export const api = {
       `/api/therapist/sessions/${patientId}`,
       token,
     ).then(list => list.map(adaptSession)),
+
+  getTherapistSession: (token: string, sessionId: number): Promise<Session> =>
+    req<Record<string, unknown>>(
+      'GET',
+      `/api/therapist/session/${sessionId}`,
+      token,
+    ).then(adaptSession),
 
   getTherapistSessionAnalysis: (token: string, sessionId: number): Promise<SessionAnalysis> =>
     req<Record<string, unknown>>(
