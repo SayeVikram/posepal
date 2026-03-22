@@ -63,7 +63,7 @@ const AssignmentsPage = () => {
                 <CardContent className="space-y-4 p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-display text-lg font-bold leading-tight">{a.pose?.poseName}</h3>
+                      <h3 className="font-display text-2xl font-bold leading-tight">{a.pose?.poseName}</h3>
                       {a.dueDate && (
                         <p className={`mt-1 flex items-center gap-1 text-xs font-medium ${
                           a.status === 'overdue' ? 'text-destructive' : 'text-muted-foreground'

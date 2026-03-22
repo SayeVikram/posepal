@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import ScoreBadge from '@/components/ScoreBadge';
+const scoreColor = (s: number) => s >= 0.8 ? 'text-success' : s >= 0.6 ? 'text-warning' : 'text-destructive';
 import CorrectnessTimeline from '@/components/CorrectnessTimeline';
 import SessionVideoPlayer, { VideoPlayerHandle } from '@/components/SessionVideoPlayer';
 import { AlertTriangle, CheckCircle2, BarChart3, Loader2, Clock } from 'lucide-react';
@@ -110,12 +110,17 @@ const SessionDetailPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <ScoreBadge score={analysis.overallCorrectness} size="lg" />
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">{session.poseName}</h1>
-          <p className="text-sm text-muted-foreground">{new Date(session.recordedAt).toLocaleString()}</p>
+      {/* Hero score */}
+      <div className="border-b border-border pb-6">
+        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Session Result</p>
+        <div className="mt-1 flex items-end gap-4">
+          <p className={`font-display text-8xl font-bold leading-none tracking-tight ${scoreColor(analysis.overallCorrectness)}`}>
+            {Math.round(analysis.overallCorrectness * 100)}%
+          </p>
+          <div className="mb-1">
+            <h1 className="font-display text-2xl font-bold text-foreground leading-tight">{session.poseName}</h1>
+            <p className="text-xs text-muted-foreground">{new Date(session.recordedAt).toLocaleString()}</p>
+          </div>
         </div>
       </div>
 
@@ -136,15 +141,15 @@ const SessionDetailPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="flex divide-x divide-border border border-border rounded-md overflow-hidden">
               {[
-                { label: 'Total Frames',  value: analysis.totalFrames,                          cls: 'text-foreground', bg: 'bg-secondary' },
-                { label: 'Correct',       value: analysis.correctFrames,                         cls: 'text-success',    bg: 'bg-success/10' },
-                { label: 'Incorrect',     value: analysis.totalFrames - analysis.correctFrames,  cls: 'text-destructive',bg: 'bg-destructive/10' },
+                { label: 'Total',     value: analysis.totalFrames,                          cls: 'text-foreground' },
+                { label: 'Correct',   value: analysis.correctFrames,                         cls: 'text-success'    },
+                { label: 'Incorrect', value: analysis.totalFrames - analysis.correctFrames,  cls: 'text-destructive'},
               ].map(s => (
-                <div key={s.label} className={`rounded-md p-3 text-center ${s.bg}`}>
-                  <p className={`font-display text-2xl font-bold ${s.cls}`}>{s.value}</p>
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                <div key={s.label} className="flex-1 p-4">
+                  <p className={`font-display text-4xl font-bold leading-none tracking-tight ${s.cls}`}>{s.value}</p>
+                  <p className="mt-1.5 text-xs font-medium uppercase tracking-widest text-muted-foreground">{s.label}</p>
                 </div>
               ))}
             </div>

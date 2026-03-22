@@ -35,18 +35,18 @@ const PatientDashboard = () => {
       {/* Hero */}
       <div>
         <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Overview</p>
-        <h1 className="mt-2 font-display text-5xl font-bold text-foreground leading-none">
+        <h1 className="mt-2 font-display text-6xl font-bold text-foreground leading-none tracking-tight">
           Hey, {user?.name?.split(' ')[0]}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">Here's your therapy progress</p>
       </div>
 
-      {/* Stats strip — no cards, just numbers */}
-      <div className="flex divide-x divide-border border-y border-border py-5">
+      {/* Stats strip */}
+      <div className="flex divide-x divide-border border-y border-border py-6">
         {stats.map(s => (
           <div key={s.label} className="flex-1 px-5 first:pl-0 last:pr-0">
-            <p className={`font-display text-4xl font-bold leading-none ${s.color}`}>{s.value}</p>
-            <p className="mt-1.5 text-xs text-muted-foreground">{s.label}</p>
+            <p className={`font-display text-7xl font-bold leading-none tracking-tight ${s.color}`}>{s.value}</p>
+            <p className="mt-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">{s.label}</p>
           </div>
         ))}
       </div>
