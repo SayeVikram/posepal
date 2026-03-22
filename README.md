@@ -50,31 +50,6 @@ AI-powered physiotherapy platform where therapists assign pose exercises and pat
 
 ---
 
-## Project Structure
-
-```
-posepal-assist/
-├── src/                  # React frontend
-│   ├── components/       # Shared UI components
-│   ├── contexts/         # Auth context
-│   ├── hooks/            # Custom React hooks
-│   ├── lib/              # API client, Supabase client
-│   └── pages/            # Route pages (patient/, therapist/, auth/)
-├── backend/
-│   ├── app/
-│   │   ├── main.py       # FastAPI app entry point
-│   │   ├── config.py     # Settings via pydantic-settings
-│   │   ├── models/       # Pydantic schemas
-│   │   ├── routes/       # API routers (auth, user, therapist, pairing)
-│   │   └── utils/        # DB helpers, storage, auth, pairing codes
-│   ├── migrations/       # SQL migration files
-│   ├── ml_training/      # Model training scripts and saved model
-│   └── requirements.txt
-└── README.md
-```
-
----
-
 ## Local Development
 
 ### Frontend
