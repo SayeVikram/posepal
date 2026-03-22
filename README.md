@@ -1,6 +1,7 @@
 # PosePal Assist
 
 AI-powered physiotherapy platform where therapists assign pose exercises and patients record sessions for real-time accuracy feedback.
+![IMG_0012](https://github.com/user-attachments/assets/b0f259a0-4690-4447-9ae2-1322ddeea80a)
 
 ---
 
@@ -13,23 +14,10 @@ AI-powered physiotherapy platform where therapists assign pose exercises and pat
 | **TypeScript** | Type safety |
 | **Vite** | Build tool and dev server |
 | **Tailwind CSS** | Utility-first styling |
-| **shadcn/ui** | Component library (built on Radix UI) |
-| **Radix UI** | Headless accessible primitives (dialog, select, alert-dialog, avatar, etc.) |
-| **Framer Motion** | Animations and transitions |
-| **React Router DOM** | Client-side routing |
-| **TanStack React Query** | Server state management and data fetching |
 | **TensorFlow.js** | In-browser ML inference |
 | **@tensorflow-models/pose-detection** | MoveNet pose landmark detection |
 | **@tensorflow/tfjs-backend-webgl** | WebGL GPU acceleration for TF.js |
 | **React Hook Form** | Form state management |
-| **Zod** | Schema validation |
-| **Recharts** | Data visualization / charts |
-| **Sonner** | Toast notifications |
-| **Lucide React** | Icon library |
-| **date-fns** | Date formatting and manipulation |
-| **next-themes** | Dark/light theme management |
-| **clsx + tailwind-merge** | Conditional class name utilities |
-| **class-variance-authority** | Component variant management |
 
 ### Backend
 | Framework / Library | Purpose |
@@ -46,7 +34,6 @@ AI-powered physiotherapy platform where therapists assign pose exercises and pat
 | **NumPy** | Numerical computation |
 | **OpenCV (headless)** | Video frame processing |
 | **Ultralytics (YOLOv8)** | Pose detection (training pipeline) |
-| **boto3** | AWS S3 video storage |
 | **requests** | HTTP client |
 | **pytest + pytest-asyncio + httpx** | Testing |
 
