@@ -6,11 +6,13 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-const scoreColor = (s: number) => s >= 0.8 ? 'text-success' : s >= 0.6 ? 'text-warning' : 'text-destructive';
+import { useCountUp } from '@/hooks/useCountUp';
 import CorrectnessTimeline from '@/components/CorrectnessTimeline';
 import SessionVideoPlayer, { VideoPlayerHandle } from '@/components/SessionVideoPlayer';
 import { AlertTriangle, CheckCircle2, BarChart3, Loader2, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+const scoreColor = (s: number) => s >= 0.8 ? 'text-success' : s >= 0.6 ? 'text-warning' : 'text-destructive';
 
 const severityColor = {
   low:      'bg-warning/10 text-warning border-warning/20',
@@ -62,6 +64,10 @@ const SessionDetailPage = () => {
     enabled: !!token && !!sessionId && !!session?.processed,
   });
 
+  // Count-up for the hero score — runs once when analysis data arrives
+  const targetPct = analysis ? Math.round(analysis.overallCorrectness * 100) : 0;
+  const animatedPct = useCountUp(targetPct, 900);
+
   if (sessionLoading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -111,28 +117,41 @@ const SessionDetailPage = () => {
   return (
     <div className="space-y-6">
       {/* Hero score */}
-      <div className="border-b border-border pb-6">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="border-b border-border pb-6"
+      >
         <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Session Result</p>
         <div className="mt-1 flex items-end gap-4">
-          <p className={`font-display text-8xl font-bold leading-none tracking-tight ${scoreColor(analysis.overallCorrectness)}`}>
-            {Math.round(analysis.overallCorrectness * 100)}%
+          <p className={`font-display text-8xl font-bold leading-none tracking-tight tabular-nums ${scoreColor(analysis.overallCorrectness)}`}>
+            {animatedPct}%
           </p>
           <div className="mb-1">
             <h1 className="font-display text-2xl font-bold text-foreground leading-tight">{session.poseName}</h1>
             <p className="text-xs text-muted-foreground">{new Date(session.recordedAt).toLocaleString()}</p>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Video */}
       {session.videoUrl && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        >
           <SessionVideoPlayer ref={videoPlayerRef} url={session.videoUrl} />
         </motion.div>
       )}
 
       {/* Summary */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      >
         <Card className="border-border/50 shadow-card">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base font-bold">

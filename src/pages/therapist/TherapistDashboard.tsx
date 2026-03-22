@@ -1,6 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
+import { useCountUp } from '@/hooks/useCountUp';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -20,10 +21,13 @@ const TherapistDashboard = () => {
     enabled: !!token,
   });
 
+  const patientCount = useCountUp(patients.length, 700);
+  const poseCount    = useCountUp(poses.length, 800);
+
   const stats = [
-    { label: 'Patients',       value: patients.length, color: 'text-primary'    },
-    { label: 'Pose Templates', value: poses.length,    color: 'text-accent'     },
-    { label: 'Sessions',       value: '—',             color: 'text-foreground' },
+    { label: 'Patients',       value: patientCount, color: 'text-primary'    },
+    { label: 'Pose Templates', value: poseCount,    color: 'text-accent'     },
+    { label: 'Sessions',       value: '—',          color: 'text-foreground' },
   ];
 
   return (

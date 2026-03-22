@@ -54,7 +54,7 @@ const AssignmentsPage = () => {
         <section className="space-y-3">
           <h2 className="text-xs font-bold uppercase tracking-widest text-warning">Active</h2>
           {active.map((a, i) => (
-            <motion.div key={a.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+            <motion.div key={a.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.06 }}>
               <Card className={`shadow-card overflow-hidden border-l-[3px] ${
                   a.status === 'overdue'
                     ? 'border-l-destructive border-destructive/20'
@@ -120,7 +120,7 @@ const AssignmentsPage = () => {
         <section className="space-y-3">
           <h2 className="text-xs font-bold uppercase tracking-widest text-success">Completed</h2>
           {done.map((a, i) => (
-            <motion.div key={a.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+            <motion.div key={a.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}>
               <Card className="border-success/15 bg-success/5 shadow-card">
                 <CardContent className="flex items-center gap-4 p-4">
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />

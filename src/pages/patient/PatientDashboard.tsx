@@ -1,7 +1,8 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, CheckCircle2, Clock, TrendingUp, ArrowRight } from 'lucide-react';
+import { useCountUp } from '@/hooks/useCountUp';
+import { ClipboardList, TrendingUp, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
@@ -24,10 +25,14 @@ const PatientDashboard = () => {
   const completed = assignments.filter(a => a.status === 'completed').length;
   const recentSessions = sessions.slice(0, 3);
 
+  const pendingCount   = useCountUp(pending, 700);
+  const completedCount = useCountUp(completed, 800);
+  const totalCount     = useCountUp(assignments.length, 900);
+
   const stats = [
-    { label: 'Pending',   value: pending,            color: 'text-warning' },
-    { label: 'Completed', value: completed,           color: 'text-success' },
-    { label: 'Total',     value: assignments.length,  color: 'text-foreground' },
+    { label: 'Pending',   value: pendingCount,    color: 'text-warning' },
+    { label: 'Completed', value: completedCount,  color: 'text-success' },
+    { label: 'Total',     value: totalCount,       color: 'text-foreground' },
   ];
 
   return (
