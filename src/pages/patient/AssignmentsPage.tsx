@@ -42,11 +42,11 @@ const AssignmentsPage = () => {
   const done   = assignments.filter(a => a.status === 'completed');
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-12">
       {/* Header */}
       <div>
-        <p className="text-sm font-medium uppercase tracking-widest text-muted-foreground">Your Exercises</p>
-        <h1 className="mt-1 font-display text-4xl font-bold text-foreground">Assignments</h1>
+        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Your Exercises</p>
+        <h1 className="mt-2 font-display text-5xl font-bold leading-none text-foreground">Assignments</h1>
       </div>
 
       {/* Active */}
@@ -140,7 +140,7 @@ const AssignmentsPage = () => {
       )}
 
       {!assignments.length && (
-        <p className="rounded-xl border border-border/40 py-20 text-center text-muted-foreground">
+        <p className="rounded-md border border-border py-16 text-center text-sm text-muted-foreground">
           No assignments yet. Your therapist will assign exercises soon.
         </p>
       )}

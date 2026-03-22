@@ -109,7 +109,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
         </div>
       </nav>
 
-      <main className="container pb-24 pt-8 md:pb-10">{children}</main>
+      <main className="container max-w-2xl pb-24 pt-10 md:pb-12 md:pt-12">{children}</main>
     </div>
   );
 };
