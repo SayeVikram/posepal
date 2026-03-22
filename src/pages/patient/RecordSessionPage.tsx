@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
@@ -7,10 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Camera, Square, Upload, RotateCcw, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePoseDetection } from '@/components/PoseCamera/usePoseDetection';
 
 type Phase = 'preview' | 'countdown' | 'recording' | 'review' | 'uploading' | 'done';
 
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+/** One sampled data point collected from the live TF.js model during recording. */
+interface FrameSample {
+  ts: number;    // seconds since recording started
+  score: number; // probability [0-1] that the correct pose is happening
+}
 
 const ScoreRing = ({ score }: { score: number }) => {
   const pct = Math.round(score * 100);
@@ -42,11 +47,15 @@ const RecordSessionPage = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const scoreHistoryRef = useRef<number[]>([]);
-  const scoringRef = useRef<number>();
+
+  // Per-frame accuracy samples collected from the live TF.js model.
+  // Sent to the backend on upload — post-session scores come from here directly.
+  const frameSamplesRef = useRef<FrameSample[]>([]);
+  const recordingStartMsRef = useRef<number>(0);
 
   const [phase, setPhase] = useState<Phase>('preview');
   const [countdown, setCountdown] = useState(3);
@@ -64,6 +73,13 @@ const RecordSessionPage = () => {
     queryFn: () => api.getAssignment(token!, Number(assignmentId)),
     enabled: !!token && !!assignmentId,
   });
+  const expectedPoseClass = assignment?.pose?.expectedPoseClass;
+
+  const { result: poseResult, loading: poseLoading, error: poseError } = usePoseDetection(
+    videoRef,
+    overlayCanvasRef,
+    expectedPoseClass,
+  );
 
   const { data: todayCount = 0 } = useQuery({
     queryKey: ['today-count', assignmentId, token],
@@ -91,54 +107,37 @@ const RecordSessionPage = () => {
     return () => {
       stopCamera();
       if (timerRef.current) clearInterval(timerRef.current);
-      if (scoringRef.current) clearInterval(scoringRef.current);
     };
   }, [stopCamera]);
 
-  // Real-time scoring during recording
-  const captureAndScore = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || !token) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    // Draw mirrored to match display
-    ctx.save();
-    ctx.scale(-1, 1);
-    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-    ctx.restore();
-    const base64 = canvas.toDataURL('image/jpeg', 0.7).replace(/^data:image\/[^;]+;base64,/, '');
-    try {
-      const res = await fetch(`${BASE}/api/user/detect-pose`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          image: base64,
-          expected_pose: assignment?.pose?.expectedPoseClass ?? null,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const score: number = data.confidence ?? 0;
-        scoreHistoryRef.current.push(score);
-        setLiveScore(score);
-        const avg = scoreHistoryRef.current.reduce((a, b) => a + b, 0) / scoreHistoryRef.current.length;
-        setAvgScore(avg);
-      }
-    } catch { /* best-effort, never crash recording */ }
-  }, [token, assignment]);
-
+  // Collect per-frame accuracy from the live TF.js model during recording.
+  // Score = probability that the CORRECT pose is happening right now.
+  // This is the single source of truth — post-session analysis uses this array.
   useEffect(() => {
-    if (phase === 'recording') {
-      scoreHistoryRef.current = [];
-      captureAndScore(); // first capture immediately
-      scoringRef.current = window.setInterval(captureAndScore, 2500);
-    } else {
-      if (scoringRef.current) clearInterval(scoringRef.current);
+    if (phase !== 'recording' || !poseResult) return;
+
+    // expectedConfidence = model's softmax probability for the assigned pose class.
+    // This is the most direct measure of "is the patient doing the right pose?"
+    // Falls back to 0 when the expected class isn't found in VITE_POSE_CLASS_NAMES
+    // (conservative — unknown config should not inflate accuracy).
+    const score = expectedPoseClass
+      ? (poseResult.expectedConfidence ?? 0)
+      : poseResult.confidence;
+
+    // Debug: log every 30th sample so you can see data flowing in DevTools.
+    if (frameSamplesRef.current.length % 30 === 0) {
+      console.log(
+        `[PosePal] Frame #${frameSamplesRef.current.length}: label=${poseResult.label} score=${score.toFixed(3)} expectedClass=${expectedPoseClass ?? 'none'} expectedConf=${poseResult.expectedConfidence?.toFixed(3) ?? 'null'}`,
+      );
     }
-  }, [phase, captureAndScore]);
+
+    const ts = (Date.now() - recordingStartMsRef.current) / 1000;
+    frameSamplesRef.current.push({ ts, score });
+    scoreHistoryRef.current.push(score);
+    setLiveScore(score);
+    const avg = scoreHistoryRef.current.reduce((a, b) => a + b, 0) / scoreHistoryRef.current.length;
+    setAvgScore(avg);
+  }, [phase, poseResult, expectedPoseClass]);
 
   const startCountdown = () => {
     startCamera();
@@ -156,6 +155,10 @@ const RecordSessionPage = () => {
     setPhase('recording');
     setTimer(0);
     setLiveScore(null);
+    setAvgScore(null);
+    scoreHistoryRef.current = [];
+    frameSamplesRef.current = [];
+    recordingStartMsRef.current = Date.now();
     chunksRef.current = [];
     const stream = videoRef.current?.srcObject as MediaStream;
     if (!stream) return;
@@ -183,7 +186,20 @@ const RecordSessionPage = () => {
     setPhase('uploading');
     setUploadError(null);
     try {
-      const session = await api.uploadSession(token, Number(assignmentId), recordedBlob);
+      const samples = frameSamplesRef.current;
+      console.log(
+        `[PosePal] Uploading session: ${samples.length} frame samples collected.`,
+        samples.length > 0
+          ? `First: ts=${samples[0].ts.toFixed(2)}s score=${samples[0].score.toFixed(3)} | Last: ts=${samples[samples.length - 1].ts.toFixed(2)}s score=${samples[samples.length - 1].score.toFixed(3)}`
+          : 'NO SAMPLES — TF.js model may not have run during recording.',
+      );
+      const session = await api.uploadSession(
+        token,
+        Number(assignmentId),
+        recordedBlob,
+        'session.webm',
+        samples,
+      );
       setSessionId(session.id);
       setPhase('done');
     } catch (err) {
@@ -227,9 +243,6 @@ const RecordSessionPage = () => {
         <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{uploadError}</p>
       )}
 
-      {/* Hidden canvas for frame capture */}
-      <canvas ref={canvasRef} className="hidden" />
-
       <div className="relative mx-auto aspect-[4/3] max-w-lg overflow-hidden rounded-2xl bg-foreground/5">
         {phase === 'preview' ? (
           <div className="flex h-full items-center justify-center">
@@ -240,6 +253,13 @@ const RecordSessionPage = () => {
         ) : recordedUrl ? (
           <video src={recordedUrl} controls className="h-full w-full object-cover" />
         ) : null}
+        {phase !== 'review' && phase !== 'done' && (
+          <canvas
+            ref={overlayCanvasRef}
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            style={{ transform: 'scaleX(-1)' }}
+          />
+        )}
 
         <AnimatePresence>
           {phase === 'countdown' && (
@@ -255,7 +275,6 @@ const RecordSessionPage = () => {
           )}
         </AnimatePresence>
 
-        {/* Recording indicator */}
         {phase === 'recording' && (
           <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-destructive px-3 py-1 text-sm font-medium text-destructive-foreground">
             <span className="h-2 w-2 animate-pulse rounded-full bg-destructive-foreground" />
@@ -263,7 +282,6 @@ const RecordSessionPage = () => {
           </div>
         )}
 
-        {/* Live score overlay */}
         {phase === 'recording' && liveScore !== null && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
@@ -274,7 +292,6 @@ const RecordSessionPage = () => {
           </motion.div>
         )}
 
-        {/* Score bar at bottom during recording */}
         {phase === 'recording' && liveScore !== null && (
           <div className="absolute bottom-0 left-0 right-0 h-2 bg-black/30">
             <motion.div
@@ -291,12 +308,27 @@ const RecordSessionPage = () => {
         {phase === 'uploading' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-foreground/60 text-primary-foreground">
             <Loader2 className="h-10 w-10 animate-spin" />
-            <p className="mt-3 font-medium">Uploading & analyzing…</p>
+            <p className="mt-3 font-medium">Uploading…</p>
           </div>
         )}
       </div>
 
-      {/* Avg score shown in review */}
+      {poseError && (
+        <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+          Real-time model error: {poseError}
+        </p>
+      )}
+      {poseLoading && (
+        <p className="text-center text-sm text-muted-foreground">Loading on-device pose models…</p>
+      )}
+      {phase === 'recording' && poseResult && (
+        <p className="text-center text-xs text-muted-foreground">
+          Predicted: {poseResult.label}
+          {expectedPoseClass ? ` | Target: ${expectedPoseClass}` : ''}
+          {` | Visibility: ${(poseResult.meanKeypointScore * 100).toFixed(0)}%`}
+        </p>
+      )}
+
       {phase === 'review' && avgScore !== null && (
         <Card className="border-primary/20 bg-primary/5 shadow-card">
           <CardContent className="flex items-center gap-3 p-3">

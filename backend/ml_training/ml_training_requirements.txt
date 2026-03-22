@@ -1,0 +1,15 @@
+# Training-only dependencies (not needed in production)
+# Install with: pip install -r backend/ml_training/ml_training_requirements.txt
+#
+# These are intentionally NOT in requirements.txt to keep the production
+# Docker image lean.  tensorflow is ~500 MB and is only needed to run
+# extract_features.py / train_model.py locally or in Colab.
+
+tensorflow>=2.15.0
+tensorflow-hub>=0.16.0
+
+# Already in requirements.txt but listed here for standalone install convenience
+opencv-python-headless>=4.10.0
+numpy>=1.26.0
+scikit-learn>=1.5.0
+joblib>=1.4.0

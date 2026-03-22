@@ -82,20 +82,12 @@ async def get_today_session_count(assignment_id: int, user=Depends(get_db_user))
 async def upload_session(
     assignment_id: int = Form(...),
     video: UploadFile = File(...),
+    frame_analyses: str | None = Form(None),
     user=Depends(get_db_user),
 ):
-    assignment = await get_assignment(assignment_id)
-    if not assignment:
-        raise HTTPException(status_code=404, detail="Assignment not found")
-    max_per_day = assignment.get("max_sessions_per_day")
-    if max_per_day:
-        count = await count_sessions_today_for_assignment(assignment_id, user["id"])
-        if count >= max_per_day:
-            raise HTTPException(
-                status_code=429,
-                detail=f"Daily limit reached: max {max_per_day} session{'s' if max_per_day != 1 else ''} per day for this assignment.",
-            )
-    return await process_session_video(video, user["id"], assignment_id)
+    return await process_session_video(
+        video, user["id"], assignment_id, frame_analyses_json=frame_analyses
+    )
 
 
 @router.get("/sessions", response_model=list[SessionResult])

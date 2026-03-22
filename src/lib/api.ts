@@ -139,13 +139,26 @@ function adaptAssignment(a: Record<string, unknown>): Assignment {
 }
 
 const CORRECTNESS_THRESHOLD = 0.5;
-const ASSUMED_FPS = 5; // frame_interval=5, so sampled frame index / (native_fps/5)
+// Legacy fallback: approximate fps used before real timestamps were stored.
+// New recordings include a `ts` field (actual seconds) so this is rarely needed.
+const LEGACY_FRAME_INTERVAL = 5;
+const LEGACY_NATIVE_FPS = 30;
 
 function adaptAnalysis(a: Record<string, unknown>): SessionAnalysis {
-  const frameAnalyses = (a.frame_analyses as Array<{ frame: number; score: number }>) ?? [];
+  const frameAnalyses = (
+    a.frame_analyses as Array<{
+      frame: number;
+      score: number;
+      ts?: number;
+      is_correct?: boolean;
+    }>
+  ) ?? [];
   const timeline: TimelineEntry[] = frameAnalyses.map(f => ({
-    timestamp: f.frame / ASSUMED_FPS,
-    isCorrect: f.score >= CORRECTNESS_THRESHOLD,
+    // Prefer the real timestamp stored by the backend; fall back to estimate.
+    timestamp: f.ts ?? f.frame / LEGACY_NATIVE_FPS,
+    // Use the backend's label-aware correctness flag when available.
+    // Older recordings only have `score`; fall back to threshold comparison.
+    isCorrect: f.is_correct ?? f.score >= CORRECTNESS_THRESHOLD,
   }));
   return {
     id: a.id as number,
@@ -270,10 +283,16 @@ export const api = {
     assignmentId: number,
     videoBlob: Blob,
     filename = 'session.webm',
+    frameSamples?: Array<{ ts: number; score: number }>,
   ): Promise<Session> => {
     const form = new FormData();
     form.append('assignment_id', String(assignmentId));
     form.append('video', videoBlob, filename);
+    // Send per-frame accuracy samples from the live TF.js model.
+    // Backend uses these directly — no server-side re-analysis at all.
+    if (frameSamples && frameSamples.length > 0) {
+      form.append('frame_analyses', JSON.stringify(frameSamples));
+    }
     const res = await fetch(`${BASE}/api/user/session`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
@@ -341,6 +360,13 @@ export const api = {
       `/api/therapist/sessions/${patientId}`,
       token,
     ).then(list => list.map(adaptSession)),
+
+  getTherapistSession: (token: string, sessionId: number): Promise<Session> =>
+    req<Record<string, unknown>>(
+      'GET',
+      `/api/therapist/session/${sessionId}`,
+      token,
+    ).then(adaptSession),
 
   getTherapistSessionAnalysis: (token: string, sessionId: number): Promise<SessionAnalysis> =>
     req<Record<string, unknown>>(
