@@ -176,6 +176,37 @@ class AddPatientRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Pairing system
+# ---------------------------------------------------------------------------
+
+class PairingCodeResponse(BaseModel):
+    """Returned to the therapist after generating a code. Raw code shown once."""
+    code: str          # raw 6-char code — show to therapist, never re-display
+    expires_at: str    # ISO-8601 UTC
+
+
+class SubmitCodeRequest(BaseModel):
+    """Patient submits the code they received from their therapist."""
+    code: str
+
+
+class UnpairRequest(BaseModel):
+    """Patient requests to revoke a specific therapist relationship."""
+    relationship_id: int
+
+
+class RelationshipResponse(BaseModel):
+    id: int
+    therapist_id: int
+    patient_id: int
+    status: str
+    created_at: str | None = None
+    revoked_at: str | None = None
+    # Optionally hydrated by the endpoint:
+    therapist: dict | None = None
+
+
+# ---------------------------------------------------------------------------
 # Realtime pose detection
 # ---------------------------------------------------------------------------
 

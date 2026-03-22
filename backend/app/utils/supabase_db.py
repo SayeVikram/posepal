@@ -5,6 +5,133 @@ from app.utils.supabase_storage import get_delivery_url
 
 
 # ---------------------------------------------------------------------------
+# Pairing codes
+# ---------------------------------------------------------------------------
+
+async def store_pairing_code(therapist_id: int, code_hash: str, expires_at: str) -> dict:
+    """Insert a new pairing-code record (hash only, never the raw code)."""
+    sb = get_client()
+    res = sb.table("pairing_codes").insert({
+        "therapist_id": therapist_id,
+        "code_hash": code_hash,
+        "expires_at": expires_at,
+        "is_used": False,
+    }).execute()
+    return res.data[0] if res.data else {}
+
+
+async def get_active_codes_for_therapist(therapist_id: int) -> list[dict]:
+    """Return unexpired, unused pairing-code records for the therapist (no hashes exposed)."""
+    sb = get_client()
+    now = datetime.now(timezone.utc).isoformat()
+    res = (
+        sb.table("pairing_codes")
+        .select("id, therapist_id, expires_at, created_at")  # deliberately omit code_hash
+        .eq("therapist_id", therapist_id)
+        .eq("is_used", False)
+        .gt("expires_at", now)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return res.data or []
+
+
+async def consume_pairing_code_rpc(
+    code_hash: str,
+    patient_id: int,
+    patient_supabase_uid: str,
+    ip_address: str,
+) -> dict:
+    """
+    Call the atomic ``consume_pairing_code`` PostgreSQL function.
+    Returns the JSON result with ``success`` bool and either
+    ``relationship_id`` / ``therapist_id`` or an ``error`` string.
+    Race-condition safe: the function uses SELECT ... FOR UPDATE SKIP LOCKED.
+    """
+    sb = get_client()
+    res = sb.rpc("consume_pairing_code", {
+        "p_code_hash":            code_hash,
+        "p_patient_id":           patient_id,
+        "p_patient_supabase_uid": patient_supabase_uid,
+        "p_ip_address":           ip_address,
+    }).execute()
+    return res.data if isinstance(res.data, dict) else {}
+
+
+# ---------------------------------------------------------------------------
+# Relationships
+# ---------------------------------------------------------------------------
+
+async def get_active_relationship(therapist_id: int, patient_id: int) -> dict | None:
+    """Return the relationship row if status == 'ACTIVE', else None."""
+    sb = get_client()
+    res = (
+        sb.table("therapist_patient_relationships")
+        .select("*")
+        .eq("therapist_id", therapist_id)
+        .eq("patient_id", patient_id)
+        .eq("status", "ACTIVE")
+        .maybe_single()
+        .execute()
+    )
+    return res.data if res else None
+
+
+async def get_patient_relationships(patient_id: int) -> list[dict]:
+    """Return all relationship rows for a patient (any status)."""
+    sb = get_client()
+    res = (
+        sb.table("therapist_patient_relationships")
+        .select("*")
+        .eq("patient_id", patient_id)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return res.data or []
+
+
+async def revoke_relationship_rpc(
+    patient_id: int,
+    patient_supabase_uid: str,
+    ip_address: str,
+    relationship_id: int,
+) -> dict:
+    """
+    Call the atomic ``revoke_relationship`` PostgreSQL function.
+    Archives the record and writes an audit log entry in one transaction.
+    """
+    sb = get_client()
+    res = sb.rpc("revoke_relationship", {
+        "p_patient_id":           patient_id,
+        "p_patient_supabase_uid": patient_supabase_uid,
+        "p_ip_address":           ip_address,
+        "p_relationship_id":      relationship_id,
+    }).execute()
+    return res.data if isinstance(res.data, dict) else {}
+
+
+async def get_therapist_patients_via_relationships(therapist_id: int) -> list[dict]:
+    """
+    Return patients who have an ACTIVE relationship with this therapist.
+    Replaces the old assignment-based lookup so that revoked relationships
+    immediately remove the patient from the therapist's view.
+    """
+    sb = get_client()
+    rels_res = (
+        sb.table("therapist_patient_relationships")
+        .select("patient_id")
+        .eq("therapist_id", therapist_id)
+        .eq("status", "ACTIVE")
+        .execute()
+    )
+    patient_ids = [r["patient_id"] for r in (rels_res.data or [])]
+    if not patient_ids:
+        return []
+    users_res = sb.table("users").select("*").in_("id", patient_ids).execute()
+    return users_res.data or []
+
+
+# ---------------------------------------------------------------------------
 # Users
 # ---------------------------------------------------------------------------
 

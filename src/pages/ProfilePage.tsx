@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/lib/api';
+import { api, Relationship } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,18 +8,75 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { Camera, Check, Loader2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Camera, Check, Loader2, Link2, Link2Off, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import PageHeader from '@/components/PageHeader';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const ProfilePage = () => {
   const { user, token, setUser } = useAuth();
+  const queryClient = useQueryClient();
   const [name, setName] = useState(user?.name ?? '');
   const [savingName, setSavingName] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
+  const [pairingCode, setPairingCode] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isPatient = user?.role === 'patient';
+
+  // --- Relationships (patient only) ---
+  const { data: relationships = [], isLoading: loadingRels } = useQuery<Relationship[]>({
+    queryKey: ['relationships', token],
+    queryFn: () => api.getRelationships(token!),
+    enabled: !!token && isPatient,
+  });
+
+  const activeRelationships = relationships.filter(r => r.status === 'ACTIVE');
+
+  const submitCodeMutation = useMutation({
+    mutationFn: (code: string) => api.submitPairingCode(token!, code),
+    onSuccess: () => {
+      toast.success('Paired successfully! Your therapist can now assign exercises.');
+      setPairingCode('');
+      queryClient.invalidateQueries({ queryKey: ['relationships', token] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message.includes('invalid') || err.message.includes('expired')
+        ? 'Code is invalid or has expired. Ask your therapist for a new one.'
+        : 'Failed to pair. Please try again.');
+    },
+  });
+
+  const unpairMutation = useMutation({
+    mutationFn: (relationshipId: number) => api.unpair(token!, relationshipId),
+    onSuccess: () => {
+      toast.success('Unregistered from therapist.');
+      queryClient.invalidateQueries({ queryKey: ['relationships', token] });
+    },
+    onError: () => toast.error('Failed to unregister. Please try again.'),
+  });
+
+  const handleSubmitCode = () => {
+    const trimmed = pairingCode.trim().toUpperCase().replace(/\s/g, '');
+    if (trimmed.length !== 6) {
+      toast.error('Enter the full 6-character code from your therapist.');
+      return;
+    }
+    submitCodeMutation.mutate(trimmed);
+  };
 
   const initials = (user?.name ?? '?')
     .split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
@@ -129,6 +186,103 @@ const ProfilePage = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Therapist pairing — patient only */}
+      {isPatient && (
+        <Card className="border-border/50 shadow-card">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold">My Therapists</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+
+            {/* Active relationships */}
+            {loadingRels ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading…
+              </div>
+            ) : activeRelationships.length > 0 ? (
+              <div className="divide-y divide-border rounded-md border border-border">
+                {activeRelationships.map(rel => (
+                  <div key={rel.id} className="flex items-center gap-3 p-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-secondary">
+                      <UserCheck className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {rel.therapist?.name ?? `Therapist #${rel.therapistId}`}
+                      </p>
+                      {rel.therapist?.email && (
+                        <p className="truncate text-xs text-muted-foreground">{rel.therapist.email}</p>
+                      )}
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="shrink-0 text-muted-foreground hover:text-destructive">
+                          <Link2Off className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="border-border/60 bg-card">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Unregister from therapist?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {rel.therapist?.name ?? 'This therapist'} will immediately lose access to your sessions and assignments. This action cannot be undone — you'll need a new pairing code to reconnect.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => unpairMutation.mutate(rel.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Unregister
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                You haven't paired with a therapist yet.
+              </p>
+            )}
+
+            <Separator className="bg-border/50" />
+
+            {/* Pair with a new therapist */}
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold">Pair with therapist</p>
+                <p className="text-xs text-muted-foreground">
+                  Ask your therapist for a 6-character code and enter it below.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="A3B7K2"
+                  value={pairingCode}
+                  onChange={e => setPairingCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSubmitCode(); }}
+                  maxLength={6}
+                  className="h-11 font-mono tracking-widest uppercase"
+                  spellCheck={false}
+                />
+                <Button
+                  onClick={handleSubmitCode}
+                  disabled={submitCodeMutation.isPending || pairingCode.replace(/\s/g, '').length < 6}
+                  className="shrink-0"
+                >
+                  {submitCodeMutation.isPending
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <Link2 className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

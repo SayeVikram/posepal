@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import PageHeader from '@/components/PageHeader';
 import SectionHeader from '@/components/SectionHeader';
+import GeneratePairingCodeDialog from '@/components/GeneratePairingCodeDialog';
 
 const TherapistDashboard = () => {
   const { user, token } = useAuth();
@@ -35,12 +36,17 @@ const TherapistDashboard = () => {
   return (
     <div className="space-y-12">
       {/* Hero */}
-      <PageHeader
-        eyebrow="Practice Overview"
-        title={`Welcome, ${user?.name?.split(' ')[0]}`}
-        subtitle="Manage your patients and exercises"
-        size="lg"
-      />
+      <div className="flex items-end justify-between gap-4">
+        <PageHeader
+          eyebrow="Practice Overview"
+          title={`Welcome, ${user?.name?.split(' ')[0]}`}
+          subtitle="Manage your patients and exercises"
+          size="lg"
+        />
+        <div className="shrink-0 pb-1">
+          <GeneratePairingCodeDialog />
+        </div>
+      </div>
 
       {/* Stats strip */}
       <div className="flex divide-x divide-border border-y border-border py-6">

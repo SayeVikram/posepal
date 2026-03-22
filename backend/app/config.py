@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str
     SUPABASE_JWT_SECRET: str
 
+    # Pairing codes — HMAC key for code hashing; change before first deploy
+    PAIRING_CODE_SECRET: str = "change-me-pairing-secret"
+
     # Legacy JWT (kept for local sign routes)
     SECRET_KEY: str = "change-me"
     ALGORITHM: str = "HS256"

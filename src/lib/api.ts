@@ -68,6 +68,21 @@ export interface SessionAnalysis {
   timeline: TimelineEntry[];
 }
 
+export interface PairingCode {
+  code: string;
+  expiresAt: string;
+}
+
+export interface Relationship {
+  id: number;
+  therapistId: number;
+  patientId: number;
+  status: 'ACTIVE' | 'REVOKED';
+  createdAt?: string;
+  revokedAt?: string;
+  therapist?: User;
+}
+
 export interface Session {
   id: number;
   assignmentId: number;
@@ -380,6 +395,39 @@ export const api = {
 
   markReviewed: (token: string, sessionId: number): Promise<unknown> =>
     req('POST', `/api/therapist/session/${sessionId}/mark-reviewed`, token),
+
+  // --- Pairing ---
+  generatePairingCode: (token: string): Promise<PairingCode> =>
+    req<{ code: string; expires_at: string }>('POST', '/api/pairing/generate', token).then(r => ({
+      code: r.code,
+      expiresAt: r.expires_at,
+    })),
+
+  getRelationships: (token: string): Promise<Relationship[]> =>
+    req<Record<string, unknown>[]>('GET', '/api/pairing/relationships', token).then(list =>
+      list.map(r => ({
+        id: r.id as number,
+        therapistId: r.therapist_id as number,
+        patientId: r.patient_id as number,
+        status: r.status as 'ACTIVE' | 'REVOKED',
+        createdAt: r.created_at as string | undefined,
+        revokedAt: r.revoked_at as string | undefined,
+        therapist: r.therapist ? adaptUser(r.therapist as Record<string, unknown>) : undefined,
+      })),
+    ),
+
+  submitPairingCode: (token: string, code: string): Promise<Relationship> =>
+    req<Record<string, unknown>>('POST', '/api/pairing/submit', token, { code }).then(r => ({
+      id: r.id as number,
+      therapistId: r.therapist_id as number,
+      patientId: r.patient_id as number,
+      status: r.status as 'ACTIVE' | 'REVOKED',
+      createdAt: r.created_at as string | undefined,
+      therapist: r.therapist ? adaptUser(r.therapist as Record<string, unknown>) : undefined,
+    })),
+
+  unpair: (token: string, relationshipId: number): Promise<void> =>
+    req('POST', '/api/pairing/unpair', token, { relationship_id: relationshipId }).then(() => undefined),
 
   // --- Patient: delete session ---
   deleteSession: (token: string, sessionId: number): Promise<void> =>

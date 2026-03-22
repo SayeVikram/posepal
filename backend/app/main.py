@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routes import auth, user, therapist
+from app.routes import auth, user, therapist, pairing
 
 app = FastAPI(title="PosePal API", version="1.0.0")
 
@@ -14,9 +14,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
-app.include_router(user.router, prefix="/api/user", tags=["user"])
+app.include_router(auth.router,      prefix="/api/auth",      tags=["auth"])
+app.include_router(user.router,      prefix="/api/user",      tags=["user"])
 app.include_router(therapist.router, prefix="/api/therapist", tags=["therapist"])
+app.include_router(pairing.router,   prefix="/api/pairing",   tags=["pairing"])
 
 
 @app.get("/health")

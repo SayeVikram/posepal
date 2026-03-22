@@ -33,12 +33,6 @@ const PatientsPage = () => {
     enabled: !!token,
   });
 
-  const { data: allPatients = [] } = useQuery({
-    queryKey: ['all-patients', token],
-    queryFn: () => api.getAllPatients(token!),
-    enabled: !!token && assignOpen,
-  });
-
   const { data: poses = [] } = useQuery({
     queryKey: ['poses', token],
     queryFn: () => api.getPoses(token!),
@@ -92,7 +86,7 @@ const PatientsPage = () => {
                 <Select value={selectedPatient} onValueChange={setSelectedPatient}>
                   <SelectTrigger><SelectValue placeholder="Select patient" /></SelectTrigger>
                   <SelectContent>
-                    {allPatients.map(p => (
+                    {patients.map(p => (
                       <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
                     ))}
                   </SelectContent>

@@ -14,17 +14,33 @@ from app.utils.supabase_db import (
     create_feedback,
     create_pose_template,
     delete_assignment,
+    get_active_relationship,
     get_all_patients,
     get_assignment,
     get_patient_sessions,
     get_session,
     get_session_analysis,
     get_therapist_patient_assignments,
-    get_therapist_patients,
+    get_therapist_patients_via_relationships,
     get_therapist_pose_templates,
     mark_feedbacks_reviewed,
     update_assignment,
 )
+
+
+async def _assert_active_relationship(therapist_id: int, patient_id: int) -> None:
+    """
+    Raise HTTP 403 if the therapist does not have an ACTIVE relationship
+    with the patient.  Called before any endpoint that returns patient data.
+    This is the DATA PRIVACY guard for Module 2 — a revoked relationship
+    immediately cuts off access to sessions, assignments, and video URLs.
+    """
+    rel = await get_active_relationship(therapist_id, patient_id)
+    if not rel:
+        raise HTTPException(
+            status_code=403,
+            detail="No active therapist-patient relationship.",
+        )
 
 router = APIRouter()
 
@@ -80,6 +96,7 @@ async def upload_assignment_demo(
 
 @router.get("/patient/{patient_id}/assignments")
 async def patient_assignments(patient_id: int, user=Depends(require_role("therapist"))):
+    await _assert_active_relationship(user["id"], patient_id)
     return await get_therapist_patient_assignments(user["id"], patient_id)
 
 
@@ -114,7 +131,8 @@ async def update_assignment_endpoint(
 
 @router.get("/patients")
 async def patients(user=Depends(require_role("therapist"))):
-    return await get_therapist_patients(user["id"])
+    # Returns only patients with ACTIVE relationships (revoked = invisible)
+    return await get_therapist_patients_via_relationships(user["id"])
 
 
 @router.get("/all-patients")
@@ -137,15 +155,21 @@ async def add_patient(body: AddPatientRequest, user=Depends(require_role("therap
 
 @router.get("/session/{session_id}", response_model=None)
 async def get_session_detail(session_id: int, user=Depends(require_role("therapist"))):
-    """Return session row (with fresh signed video URL) for therapist replay."""
+    """
+    Return session row (with fresh signed video URL) for therapist replay.
+    Checks for an ACTIVE relationship before issuing a signed video URL —
+    a revoked relationship terminates video access immediately.
+    """
     session = await get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+    await _assert_active_relationship(user["id"], session["patient_id"])
     return session
 
 
 @router.get("/sessions/{patient_id}")
 async def patient_sessions(patient_id: int, user=Depends(require_role("therapist"))):
+    await _assert_active_relationship(user["id"], patient_id)
     return await get_patient_sessions(patient_id)
 
 
@@ -154,6 +178,10 @@ async def session_analysis(session_id: int, user=Depends(require_role("therapist
     analysis = await get_session_analysis(session_id)
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not found")
+    # Resolve patient via the session so we can check relationship access
+    session = await get_session(session_id)
+    if session:
+        await _assert_active_relationship(user["id"], session["patient_id"])
     return analysis
 
 
@@ -163,6 +191,9 @@ async def session_feedback(
     body: FeedbackCreate,
     user=Depends(require_role("therapist")),
 ):
+    session = await get_session(session_id)
+    if session:
+        await _assert_active_relationship(user["id"], session["patient_id"])
     return await create_feedback(session_id, user["id"], body.content)
 
 
@@ -171,5 +202,8 @@ async def session_mark_reviewed(
     session_id: int,
     user=Depends(require_role("therapist")),
 ):
+    session = await get_session(session_id)
+    if session:
+        await _assert_active_relationship(user["id"], session["patient_id"])
     await mark_feedbacks_reviewed(session_id)
     return {"session_id": session_id, "reviewed": True}

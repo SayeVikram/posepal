@@ -2,7 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
 import { useCountUp } from '@/hooks/useCountUp';
-import { ClipboardList, TrendingUp, ArrowRight, Clock } from 'lucide-react';
+import { ClipboardList, TrendingUp, ArrowRight, Clock, Link2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import PageHeader from '@/components/PageHeader';
@@ -22,6 +22,14 @@ const PatientDashboard = () => {
     queryFn: () => api.getSessions(token!),
     enabled: !!token,
   });
+
+  const { data: relationships = [] } = useQuery({
+    queryKey: ['relationships', token],
+    queryFn: () => api.getRelationships(token!),
+    enabled: !!token,
+  });
+
+  const hasActiveTherapist = relationships.some(r => r.status === 'ACTIVE');
 
   const pending   = assignments.filter(a => a.status === 'pending').length;
   const completed = assignments.filter(a => a.status === 'completed').length;
@@ -57,8 +65,36 @@ const PatientDashboard = () => {
         ))}
       </div>
 
-      {/* First-time empty state — no assignments at all */}
-      {assignments.length === 0 && (
+      {/* Empty state: no therapist paired yet */}
+      {!hasActiveTherapist && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="rounded-md border border-border"
+        >
+          <div className="flex items-start gap-4 p-5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-secondary">
+              <Link2 className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-foreground">Pair with your therapist to get started</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Ask your therapist for a 6-character pairing code, then enter it in your profile to receive assignments.
+              </p>
+              <Link
+                to="/profile"
+                className="mt-2 inline-block text-xs font-medium text-primary transition-colors hover:text-primary/80"
+              >
+                Go to Profile → Pair with therapist
+              </Link>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Empty state: paired but no assignments yet */}
+      {hasActiveTherapist && assignments.length === 0 && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
