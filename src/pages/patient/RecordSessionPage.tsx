@@ -107,6 +107,13 @@ const RecordSessionPage = () => {
       ? (poseResult.expectedConfidence ?? 0)
       : poseResult.confidence;
 
+    // Debug: log every 30th sample so you can see data flowing in DevTools.
+    if (frameSamplesRef.current.length % 30 === 0) {
+      console.log(
+        `[PosePal] Frame #${frameSamplesRef.current.length}: label=${poseResult.label} score=${score.toFixed(3)} expectedClass=${expectedPoseClass ?? 'none'} expectedConf=${poseResult.expectedConfidence?.toFixed(3) ?? 'null'}`,
+      );
+    }
+
     const ts = (Date.now() - recordingStartMsRef.current) / 1000;
     frameSamplesRef.current.push({ ts, score });
     scoreHistoryRef.current.push(score);
@@ -160,12 +167,19 @@ const RecordSessionPage = () => {
     setPhase('uploading');
     setUploadError(null);
     try {
+      const samples = frameSamplesRef.current;
+      console.log(
+        `[PosePal] Uploading session: ${samples.length} frame samples collected.`,
+        samples.length > 0
+          ? `First: ts=${samples[0].ts.toFixed(2)}s score=${samples[0].score.toFixed(3)} | Last: ts=${samples[samples.length - 1].ts.toFixed(2)}s score=${samples[samples.length - 1].score.toFixed(3)}`
+          : 'NO SAMPLES — TF.js model may not have run during recording.',
+      );
       const session = await api.uploadSession(
         token,
         Number(assignmentId),
         recordedBlob,
         'session.webm',
-        frameSamplesRef.current,
+        samples,
       );
       setSessionId(session.id);
       setPhase('done');

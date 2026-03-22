@@ -35,6 +35,12 @@ async def process_session_video(
     assignment_id: int,
     frame_analyses_json: str | None = None,
 ) -> dict:
+    # Diagnostic: confirm this is the new code path (no YOLO)
+    print(
+        f"[video_processor] process_session_video called | "
+        f"patient={patient_id} assignment={assignment_id} | "
+        f"frame_analyses_json={'<empty>' if not frame_analyses_json else f'{len(frame_analyses_json)} chars'}"
+    )
     contents = await file.read()
 
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
@@ -61,6 +67,15 @@ async def process_session_video(
                         "score": round(score, 4),
                         "is_correct": score >= settings.CORRECTNESS_THRESHOLD,
                     })
+
+        print(
+            f"[video_processor] Parsed {len(frame_analyses)} frame samples. "
+            + (
+                f"First: {frame_analyses[0]} | Last: {frame_analyses[-1]}"
+                if frame_analyses
+                else "No samples received — frontend may not have sent any."
+            )
+        )
 
         # Get video duration (fast — no frame decoding).
         duration = _get_video_duration(tmp_path)
