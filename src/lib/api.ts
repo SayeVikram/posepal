@@ -114,12 +114,19 @@ const LEGACY_NATIVE_FPS = 30;
 
 function adaptAnalysis(a: Record<string, unknown>): SessionAnalysis {
   const frameAnalyses = (
-    a.frame_analyses as Array<{ frame: number; score: number; ts?: number }>
+    a.frame_analyses as Array<{
+      frame: number;
+      score: number;
+      ts?: number;
+      is_correct?: boolean;
+    }>
   ) ?? [];
   const timeline: TimelineEntry[] = frameAnalyses.map(f => ({
     // Prefer the real timestamp stored by the backend; fall back to estimate.
     timestamp: f.ts ?? f.frame / LEGACY_NATIVE_FPS,
-    isCorrect: f.score >= CORRECTNESS_THRESHOLD,
+    // Use the backend's label-aware correctness flag when available.
+    // Older recordings only have `score`; fall back to threshold comparison.
+    isCorrect: f.is_correct ?? f.score >= CORRECTNESS_THRESHOLD,
   }));
   return {
     id: a.id as number,
