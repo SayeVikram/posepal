@@ -36,7 +36,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
               <Activity className="h-4 w-4 text-primary" />
             </div>
             <span className="font-display text-sm font-bold tracking-tight text-foreground">
-              PoseTherapy
+              PosePal
             </span>
           </Link>
 

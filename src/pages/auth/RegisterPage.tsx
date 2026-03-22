@@ -46,7 +46,7 @@ const RegisterPage = () => {
           </div>
           <div>
             <h1 className="font-display text-2xl font-bold text-foreground">Create account</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Join PoseTherapy today</p>
+            <p className="mt-1 text-sm text-muted-foreground">Join PosePal today</p>
           </div>
         </div>
 

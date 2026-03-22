@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PosePal Assist — System Design</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0a;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px;
+    min-height: 100vh;
+    color: #e2e8f0;
+  }
+  h1 {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: #f8fafc;
+    margin-bottom: 8px;
+  }
+  p.sub {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 40px;
+  }
+  svg {
+    max-width: 1100px;
+    width: 100%;
+    height: auto;
+  }
+</style>
+</head>
+<body>
+<h1>PosePal Assist — System Design</h1>
+<p class="sub">AI-powered physiotherapy platform · Therapist + Patient flows</p>
+
+<svg viewBox="0 0 1100 860" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+  <defs>
+    <!-- Arrow markers -->
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#3b82f6" />
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#22c55e" />
+    </marker>
+    <marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#a855f7" />
+    </marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#f97316" />
+    </marker>
+    <marker id="arrow-gray" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8" />
+    </marker>
+    <marker id="arrow-blue-r" markerWidth="8" markerHeight="8" refX="2" refY="3" orient="auto-start-reverse">
+      <path d="M8,0 L8,6 L0,3 z" fill="#3b82f6" />
+    </marker>
+    <!-- Subtle glow filter -->
+    <filter id="glow-blue" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- ── ZONE BACKGROUNDS ── -->
+
+  <!-- Clients zone -->
+  <rect x="16" y="16" width="1068" height="160" rx="12" fill="#0f172a" stroke="#1e293b" stroke-width="1.5"/>
+  <text x="30" y="36" font-size="10" font-weight="600" fill="#334155" letter-spacing="2" text-anchor="start">CLIENTS</text>
+
+  <!-- App Layer zone -->
+  <rect x="16" y="196" width="1068" height="160" rx="12" fill="#0f1a0f" stroke="#1e2e1e" stroke-width="1.5"/>
+  <text x="30" y="216" font-size="10" font-weight="600" fill="#2d4a2d" letter-spacing="2">APP LAYER</text>
+
+  <!-- Backend zone -->
+  <rect x="16" y="376" width="1068" height="160" rx="12" fill="#0f0f1a" stroke="#1e1e2e" stroke-width="1.5"/>
+  <text x="30" y="396" font-size="10" font-weight="600" fill="#2d2d4a" letter-spacing="2">BACKEND · Render</text>
+
+  <!-- Data zone -->
+  <rect x="16" y="556" width="1068" height="288" rx="12" fill="#0f0a0a" stroke="#2e1e1e" stroke-width="1.5"/>
+  <text x="30" y="576" font-size="10" font-weight="600" fill="#4a2d2d" letter-spacing="2">DATA &amp; STORAGE</text>
+
+  <!-- ── THERAPIST BROWSER ── -->
+  <rect x="60" y="40" width="220" height="118" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+  <text x="170" y="64" font-size="12" font-weight="700" fill="#f1f5f9" text-anchor="middle">Therapist</text>
+  <text x="170" y="79" font-size="10" fill="#64748b" text-anchor="middle">Browser</text>
+  <line x1="80" y1="87" x2="260" y2="87" stroke="#1e293b" stroke-width="1"/>
+  <text x="170" y="102" font-size="9.5" fill="#94a3b8" text-anchor="middle">· Create pose templates</text>
+  <text x="170" y="117" font-size="9.5" fill="#94a3b8" text-anchor="middle">· Assign to patients</text>
+  <text x="170" y="132" font-size="9.5" fill="#94a3b8" text-anchor="middle">· Generate pairing codes</text>
+  <text x="170" y="147" font-size="9.5" fill="#94a3b8" text-anchor="middle">· Review session analysis</text>
+
+  <!-- ── PATIENT BROWSER ── -->
+  <rect x="820" y="40" width="240" height="118" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+  <text x="940" y="64" font-size="12" font-weight="700" fill="#f1f5f9" text-anchor="middle">Patient</text>
+  <text x="940" y="79" font-size="10" fill="#64748b" text-anchor="middle">Browser</text>
+  <line x1="840" y1="87" x2="1040" y2="87" stroke="#1e293b" stroke-width="1"/>
+  <text x="940" y="102" font-size="9.5" fill="#94a3b8" text-anchor="middle">· Enter pairing code</text>
+  <text x="940" y="117" font-size="9.5" fill="#94a3b8" text-anchor="middle">· View assignments</text>
+  <text x="940" y="132" font-size="9.5" fill="#94a3b8" text-anchor="middle">· Record video sessions</text>
+  <text x="940" y="147" font-size="9.5" fill="#94a3b8" text-anchor="middle">· View feedback &amp; scores</text>
+
+  <!-- ── SUPABASE AUTH (client-side) ── -->
+  <rect x="430" y="40" width="240" height="118" rx="8" fill="#1a1a2e" stroke="#3730a3" stroke-width="1.5"/>
+  <text x="550" y="64" font-size="12" font-weight="700" fill="#a5b4fc" text-anchor="middle">Supabase Auth</text>
+  <text x="550" y="79" font-size="10" fill="#6366f1" text-anchor="middle">@supabase/supabase-js</text>
+  <line x1="450" y1="87" x2="650" y2="87" stroke="#1e1e3a" stroke-width="1"/>
+  <text x="550" y="102" font-size="9.5" fill="#818cf8" text-anchor="middle">Email + password sign-up/in</text>
+  <text x="550" y="117" font-size="9.5" fill="#818cf8" text-anchor="middle">Issues JWT (ES256 / HS256)</text>
+  <text x="550" y="132" font-size="9.5" fill="#818cf8" text-anchor="middle">sub = Supabase UID</text>
+  <text x="550" y="147" font-size="9.5" fill="#818cf8" text-anchor="middle">role stored in user_metadata</text>
+
+  <!-- ── REACT / VITE FRONTEND ── -->
+  <rect x="60" y="220" width="310" height="112" rx="8" fill="#0d2218" stroke="#166534" stroke-width="1.5"/>
+  <text x="215" y="244" font-size="12" font-weight="700" fill="#86efac" text-anchor="middle">React + Vite Frontend</text>
+  <text x="215" y="259" font-size="10" fill="#4ade80" text-anchor="middle">Vercel · TypeScript · Tailwind · shadcn/ui</text>
+  <line x1="80" y1="267" x2="350" y2="267" stroke="#14532d" stroke-width="1"/>
+  <text x="215" y="282" font-size="9.5" fill="#4ade80" text-anchor="middle">· TanStack Query (data fetching)</text>
+  <text x="215" y="297" font-size="9.5" fill="#4ade80" text-anchor="middle">· React Router (SPA routing)</text>
+  <text x="215" y="312" font-size="9.5" fill="#4ade80" text-anchor="middle">· Framer Motion (animations)</text>
+
+  <!-- ── TF.js ML ── -->
+  <rect x="730" y="220" width="340" height="112" rx="8" fill="#1a0e2e" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="900" y="244" font-size="12" font-weight="700" fill="#c4b5fd" text-anchor="middle">TensorFlow.js (In-Browser ML)</text>
+  <text x="900" y="259" font-size="10" fill="#a78bfa" text-anchor="middle">No server round-trip — runs on patient's GPU</text>
+  <line x1="750" y1="267" x2="1050" y2="267" stroke="#2e1065" stroke-width="1"/>
+  <text x="900" y="282" font-size="9.5" fill="#a78bfa" text-anchor="middle">· MoveNet pose landmark detection</text>
+  <text x="900" y="297" font-size="9.5" fill="#a78bfa" text-anchor="middle">· Joblib classifier → pose class label</text>
+  <text x="900" y="312" font-size="9.5" fill="#a78bfa" text-anchor="middle">· Outputs { ts, score } per frame</text>
+
+  <!-- ── FASTAPI BACKEND ── -->
+  <rect x="60" y="400" width="980" height="112" rx="8" fill="#11112e" stroke="#2e2e7a" stroke-width="1.5"/>
+  <text x="550" y="424" font-size="12" font-weight="700" fill="#bfdbfe" text-anchor="middle">FastAPI Backend · Python · Uvicorn</text>
+  <line x1="80" y1="432" x2="1020" y2="432" stroke="#1e1e3a" stroke-width="1"/>
+
+  <!-- Route boxes inside backend -->
+  <rect x="80" y="440" width="155" height="58" rx="5" fill="#1e1e3a" stroke="#3b3b6b" stroke-width="1"/>
+  <text x="157" y="458" font-size="9" font-weight="700" fill="#93c5fd" text-anchor="middle">/api/auth</text>
+  <text x="157" y="472" font-size="8.5" fill="#60a5fa" text-anchor="middle">register · login</text>
+  <text x="157" y="485" font-size="8.5" fill="#60a5fa" text-anchor="middle">me · upload-avatar</text>
+
+  <rect x="250" y="440" width="165" height="58" rx="5" fill="#1e1e3a" stroke="#3b3b6b" stroke-width="1"/>
+  <text x="332" y="458" font-size="9" font-weight="700" fill="#93c5fd" text-anchor="middle">/api/pairing</text>
+  <text x="332" y="472" font-size="8.5" fill="#60a5fa" text-anchor="middle">generate · submit</text>
+  <text x="332" y="485" font-size="8.5" fill="#60a5fa" text-anchor="middle">relationships · unpair</text>
+
+  <rect x="430" y="440" width="195" height="58" rx="5" fill="#1e1e3a" stroke="#3b3b6b" stroke-width="1"/>
+  <text x="527" y="458" font-size="9" font-weight="700" fill="#93c5fd" text-anchor="middle">/api/therapist</text>
+  <text x="527" y="472" font-size="8.5" fill="#60a5fa" text-anchor="middle">poses · assign · patients</text>
+  <text x="527" y="485" font-size="8.5" fill="#60a5fa" text-anchor="middle">sessions · feedback · review</text>
+
+  <rect x="640" y="440" width="195" height="58" rx="5" fill="#1e1e3a" stroke="#3b3b6b" stroke-width="1"/>
+  <text x="737" y="458" font-size="9" font-weight="700" fill="#93c5fd" text-anchor="middle">/api/user</text>
+  <text x="737" y="472" font-size="8.5" fill="#60a5fa" text-anchor="middle">assignments · sessions</text>
+  <text x="737" y="485" font-size="8.5" fill="#60a5fa" text-anchor="middle">upload-session · detect-pose</text>
+
+  <rect x="850" y="440" width="180" height="58" rx="5" fill="#162020" stroke="#1f4a4a" stroke-width="1"/>
+  <text x="940" y="458" font-size="9" font-weight="700" fill="#6ee7b7" text-anchor="middle">Access Guard</text>
+  <text x="940" y="472" font-size="8.5" fill="#34d399" text-anchor="middle">JWT verify (ES256/HS256)</text>
+  <text x="940" y="485" font-size="8.5" fill="#34d399" text-anchor="middle">_assert_active_relationship</text>
+
+  <!-- ── SUPABASE DB ── -->
+  <rect x="60" y="580" width="310" height="240" rx="8" fill="#1a0f0f" stroke="#7f1d1d" stroke-width="1.5"/>
+  <text x="215" y="604" font-size="12" font-weight="700" fill="#fca5a5" text-anchor="middle">Supabase</text>
+  <text x="215" y="619" font-size="10" fill="#ef4444" text-anchor="middle">PostgreSQL + Storage</text>
+  <line x1="80" y1="627" x2="350" y2="627" stroke="#3a1515" stroke-width="1"/>
+  <text x="215" y="645" font-size="9" font-weight="600" fill="#f87171" text-anchor="middle">Database Tables</text>
+  <text x="215" y="660" font-size="8.5" fill="#fca5a5" text-anchor="middle">users · pose_templates · assignments</text>
+  <text x="215" y="675" font-size="8.5" fill="#fca5a5" text-anchor="middle">sessions · session_analyses · feedbacks</text>
+  <text x="215" y="690" font-size="8.5" fill="#fca5a5" text-anchor="middle">pairing_codes · therapist_patient_relationships</text>
+  <text x="215" y="705" font-size="8.5" fill="#fca5a5" text-anchor="middle">audit_logs · audit_archive</text>
+  <line x1="80" y1="714" x2="350" y2="714" stroke="#3a1515" stroke-width="1"/>
+  <text x="215" y="731" font-size="9" font-weight="600" fill="#f87171" text-anchor="middle">Supabase Storage</text>
+  <text x="215" y="746" font-size="8.5" fill="#fca5a5" text-anchor="middle">avatars bucket (profile photos)</text>
+  <text x="215" y="761" font-size="8.5" fill="#fca5a5" text-anchor="middle">demo-media bucket (assignment demos)</text>
+  <line x1="80" y1="770" x2="350" y2="770" stroke="#3a1515" stroke-width="1"/>
+  <text x="215" y="787" font-size="9" font-weight="600" fill="#f87171" text-anchor="middle">RPC Functions</text>
+  <text x="215" y="802" font-size="8.5" fill="#fca5a5" text-anchor="middle">consume_pairing_code() — FOR UPDATE SKIP LOCKED</text>
+  <text x="215" y="817" font-size="8.5" fill="#fca5a5" text-anchor="middle">revoke_relationship() — atomic + archive</text>
+
+  <!-- ── AWS S3 ── -->
+  <rect x="420" y="580" width="260" height="120" rx="8" fill="#1a1200" stroke="#78350f" stroke-width="1.5"/>
+  <text x="550" y="604" font-size="12" font-weight="700" fill="#fcd34d" text-anchor="middle">AWS S3</text>
+  <text x="550" y="619" font-size="10" fill="#d97706" text-anchor="middle">Video File Storage · boto3</text>
+  <line x1="440" y1="627" x2="660" y2="627" stroke="#3a2800" stroke-width="1"/>
+  <text x="550" y="645" font-size="9" fill="#fbbf24" text-anchor="middle">videos/{patient_id}/{uuid}_{filename}</text>
+  <text x="550" y="660" font-size="9" fill="#fbbf24" text-anchor="middle">Raw .webm blobs from patient recordings</text>
+  <text x="550" y="676" font-size="9" fill="#fbbf24" text-anchor="middle">Private bucket — no direct access</text>
+  <text x="550" y="692" font-size="9" fill="#fbbf24" text-anchor="middle">Only served via CloudFront signed URLs</text>
+
+  <!-- ── ML MODEL ── -->
+  <rect x="420" y="720" width="260" height="100" rx="8" fill="#0f1a12" stroke="#14532d" stroke-width="1.5"/>
+  <text x="550" y="744" font-size="12" font-weight="700" fill="#86efac" text-anchor="middle">ML Model</text>
+  <text x="550" y="759" font-size="10" fill="#4ade80" text-anchor="middle">scikit-learn · joblib · YOLO</text>
+  <line x1="440" y1="767" x2="660" y2="767" stroke="#1a3a1a" stroke-width="1"/>
+  <text x="550" y="782" font-size="8.5" fill="#6ee7b7" text-anchor="middle">pose_classifier.joblib — loaded at startup</text>
+  <text x="550" y="797" font-size="8.5" fill="#6ee7b7" text-anchor="middle">Frontend sends frame_analyses JSON</text>
+  <text x="550" y="812" font-size="8.5" fill="#6ee7b7" text-anchor="middle">Backend stores, does NOT re-classify</text>
+
+  <!-- ── CLOUDFRONT ── -->
+  <rect x="730" y="580" width="340" height="120" rx="8" fill="#180a00" stroke="#9a3412" stroke-width="1.5"/>
+  <text x="900" y="604" font-size="12" font-weight="700" fill="#fb923c" text-anchor="middle">AWS CloudFront CDN</text>
+  <text x="900" y="619" font-size="10" fill="#ea580c" text-anchor="middle">Signed URL Video Delivery</text>
+  <line x1="750" y1="627" x2="1050" y2="627" stroke="#2a1400" stroke-width="1"/>
+  <text x="900" y="645" font-size="9" fill="#fdba74" text-anchor="middle">Private RSA key (CLOUDFRONT_PRIVATE_KEY)</text>
+  <text x="900" y="660" font-size="9" fill="#fdba74" text-anchor="middle">Signed URLs — valid 1 hour</text>
+  <text x="900" y="675" font-size="9" fill="#fdba74" text-anchor="middle">Generated per request on therapist session view</text>
+  <text x="900" y="690" font-size="9" fill="#fdba74" text-anchor="middle">Revoked relationship = no URL generated (403)</text>
+
+  <!-- ── PAIRING SYSTEM CALLOUT ── -->
+  <rect x="730" y="720" width="340" height="100" rx="8" fill="#1a0a1a" stroke="#581c87" stroke-width="1.5"/>
+  <text x="900" y="744" font-size="12" font-weight="700" fill="#e879f9" text-anchor="middle">Pairing System</text>
+  <text x="900" y="759" font-size="10" fill="#a855f7" text-anchor="middle">HMAC-SHA256 · One-time codes</text>
+  <line x1="750" y1="767" x2="1050" y2="767" stroke="#2e0a2e" stroke-width="1"/>
+  <text x="900" y="782" font-size="8.5" fill="#d8b4fe" text-anchor="middle">6-char code → HMAC hash stored (never raw)</text>
+  <text x="900" y="797" font-size="8.5" fill="#d8b4fe" text-anchor="middle">Atomic consume (FOR UPDATE SKIP LOCKED)</text>
+  <text x="900" y="812" font-size="8.5" fill="#d8b4fe" text-anchor="middle">Revoke → immutable audit_archive + logs</text>
+
+  <!-- ═══ ARROWS ═══ -->
+
+  <!-- Therapist → Supabase Auth (login) -->
+  <path d="M280,99 L430,99" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,3" fill="none" marker-end="url(#arrow-purple)"/>
+  <text x="355" y="93" font-size="8" fill="#6366f1" text-anchor="middle">login / register</text>
+
+  <!-- Patient → Supabase Auth (login) -->
+  <path d="M820,99 L670,99" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,3" fill="none" marker-end="url(#arrow-purple)"/>
+  <text x="745" y="93" font-size="8" fill="#6366f1" text-anchor="middle">login / register</text>
+
+  <!-- Supabase Auth → Frontend (JWT) -->
+  <path d="M550,158 L550,180 L215,180 L215,220" stroke="#22c55e" stroke-width="1.5" fill="none" marker-end="url(#arrow-green)"/>
+  <text x="365" y="175" font-size="8" fill="#22c55e" text-anchor="middle">JWT token</text>
+
+  <!-- Supabase Auth → Patient (JWT) -->
+  <path d="M670,158 L670,185 L900,185 L900,220" stroke="#22c55e" stroke-width="1.5" fill="none" marker-end="url(#arrow-green)"/>
+  <text x="785" y="180" font-size="8" fill="#22c55e" text-anchor="middle">JWT token</text>
+
+  <!-- Therapist → Frontend -->
+  <path d="M170,158 L170,210 L170,220" stroke="#3b82f6" stroke-width="1.5" fill="none" marker-end="url(#arrow-blue)"/>
+  <text x="195" y="195" font-size="8" fill="#3b82f6">HTTP requests</text>
+
+  <!-- Patient → TF.js -->
+  <path d="M940,158 L940,220" stroke="#a855f7" stroke-width="1.5" fill="none" marker-end="url(#arrow-purple)"/>
+  <text x="965" y="195" font-size="8" fill="#a855f7">records video</text>
+
+  <!-- Frontend → Backend (API calls) -->
+  <path d="M215,332 L215,370 L200,370 L200,400" stroke="#3b82f6" stroke-width="1.5" fill="none" marker-end="url(#arrow-blue)"/>
+  <text x="145" y="370" font-size="8" fill="#3b82f6" text-anchor="middle">REST API</text>
+  <text x="145" y="382" font-size="8" fill="#3b82f6" text-anchor="middle">Bearer JWT</text>
+
+  <!-- TF.js → Backend (upload session + frame_analyses) -->
+  <path d="M900,332 L900,370 L700,370 L700,400" stroke="#a855f7" stroke-width="1.5" fill="none" marker-end="url(#arrow-purple)"/>
+  <text x="800" y="363" font-size="8" fill="#a855f7" text-anchor="middle">POST /api/user/session</text>
+  <text x="800" y="375" font-size="8" fill="#a855f7" text-anchor="middle">video + frame_analyses JSON</text>
+
+  <!-- Backend → Supabase DB -->
+  <path d="M280,500 L280,540 L215,540 L215,580" stroke="#ef4444" stroke-width="1.5" fill="none" marker-end="url(#arrow-gray)"/>
+  <text x="180" y="545" font-size="8" fill="#ef4444" text-anchor="middle">PostgREST</text>
+  <text x="180" y="557" font-size="8" fill="#ef4444" text-anchor="middle">queries</text>
+
+  <!-- Backend → S3 (video upload) -->
+  <path d="M550,512 L550,540 L550,580" stroke="#f59e0b" stroke-width="1.5" fill="none" marker-end="url(#arrow-orange)"/>
+  <text x="600" y="555" font-size="8" fill="#f59e0b" text-anchor="middle">boto3 upload</text>
+
+  <!-- Backend → CloudFront (signed URL generation) -->
+  <path d="M820,500 L820,540 L900,540 L900,580" stroke="#f97316" stroke-width="1.5" fill="none" marker-end="url(#arrow-orange)"/>
+  <text x="950" y="545" font-size="8" fill="#f97316" text-anchor="middle">generate</text>
+  <text x="950" y="557" font-size="8" fill="#f97316" text-anchor="middle">signed URL</text>
+
+  <!-- CloudFront → Patient (video playback) -->
+  <path d="M1000,580 L1000,350 L960,350 L960,332" stroke="#f97316" stroke-width="1.5" stroke-dasharray="5,3" fill="none" marker-end="url(#arrow-orange)"/>
+  <text x="1035" y="460" font-size="8" fill="#f97316" text-anchor="middle" transform="rotate(90, 1035, 460)">video stream (signed URL)</text>
+
+  <!-- Backend → ML Model -->
+  <path d="M550,512 L550,720" stroke="#22c55e" stroke-width="1" stroke-dasharray="3,3" fill="none" marker-end="url(#arrow-green)"/>
+  <text x="575" y="655" font-size="8" fill="#22c55e" text-anchor="start">stores frame_analyses</text>
+
+  <!-- Pairing: Therapist → Backend → Patient callout -->
+  <path d="M332,440 L332,420 L550,420 L550,400" stroke="#e879f9" stroke-width="1.5" stroke-dasharray="4,3" fill="none"/>
+  <text x="450" y="414" font-size="8" fill="#e879f9" text-anchor="middle">pairing code flow</text>
+
+  <!-- Backend → Pairing System -->
+  <path d="M800,512 L800,540 L900,540 L900,720" stroke="#a855f7" stroke-width="1" stroke-dasharray="3,3" fill="none" marker-end="url(#arrow-purple)"/>
+
+  <!-- ═══ LEGEND ═══ -->
+  <rect x="60" y="835" width="980" height="1" fill="#1e293b"/>
+
+  <text x="60" y="855" font-size="9" fill="#64748b">Legend:</text>
+  <line x1="110" y1="851" x2="140" y2="851" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <text x="145" y="855" font-size="9" fill="#64748b">HTTP / REST</text>
+  <line x1="220" y1="851" x2="250" y2="851" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <text x="255" y="855" font-size="9" fill="#64748b">Auth / JWT</text>
+  <line x1="330" y1="851" x2="360" y2="851" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+  <text x="365" y="855" font-size="9" fill="#64748b">ML / Video data</text>
+  <line x1="460" y1="851" x2="490" y2="851" stroke="#f97316" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <text x="495" y="855" font-size="9" fill="#64748b">Storage / CDN</text>
+  <line x1="580" y1="851" x2="610" y2="851" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="615" y="855" font-size="9" fill="#64748b">Indirect / async</text>
+</svg>
+
+</body>
+</html>
