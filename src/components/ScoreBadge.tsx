@@ -13,10 +13,14 @@ const ScoreBadge = ({ score, size = 'md', className }: Props) => {
   const sizes = { sm: 'h-10 w-10 text-xs border', md: 'h-14 w-14 text-sm border', lg: 'h-20 w-20 text-xl border-2' };
 
   return (
-    <div className={cn(
-      'flex items-center justify-center rounded-full font-display font-bold',
-      sizes[size], bg, color, className,
-    )}>
+    <div
+      role="img"
+      aria-label={`Accuracy score: ${pct}%`}
+      className={cn(
+        'flex items-center justify-center rounded-full font-display font-bold',
+        sizes[size], bg, color, className,
+      )}
+    >
       {pct}%
     </div>
   );

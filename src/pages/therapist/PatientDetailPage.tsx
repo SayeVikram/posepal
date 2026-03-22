@@ -12,15 +12,9 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Pencil, Trash2, CheckCircle2, Clock, AlertCircle, Paperclip, X } from 'lucide-react';
@@ -41,8 +35,8 @@ function qualifyingDays(assignment: Assignment): number {
 }
 
 const statusMeta: Record<string, { label: string; icon: React.ReactNode; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  pending:   { label: 'Pending',   icon: <Clock className="h-3 w-3" />,        variant: 'secondary' },
-  completed: { label: 'Completed', icon: <CheckCircle2 className="h-3 w-3" />, variant: 'default' },
+  pending:   { label: 'Pending',   icon: <Clock className="h-3 w-3" />,        variant: 'secondary'   },
+  completed: { label: 'Completed', icon: <CheckCircle2 className="h-3 w-3" />, variant: 'default'     },
   overdue:   { label: 'Overdue',   icon: <AlertCircle className="h-3 w-3" />,  variant: 'destructive' },
 };
 
@@ -117,12 +111,8 @@ const PatientDetailPage = () => {
       try {
         await api.uploadAssignmentDemoMedia(token, editAssignment.id, editDemoFile);
         queryClient.invalidateQueries({ queryKey: ['patient-assignments', patientId, token] });
-      } catch {
-        toast.error('Demo media upload failed');
-      } finally {
-        setUploadingDemo(false);
-        setEditDemoFile(null);
-      }
+      } catch { toast.error('Demo media upload failed'); }
+      finally { setUploadingDemo(false); setEditDemoFile(null); }
     }
   };
 
@@ -130,7 +120,7 @@ const PatientDetailPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-24">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -139,28 +129,30 @@ const PatientDetailPage = () => {
   if (!patient) return <p className="py-12 text-center text-muted-foreground">Patient not found.</p>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Patient header */}
       <div className="flex items-center gap-4">
-        <Avatar className="h-14 w-14">
+        <Avatar className="h-16 w-16 border-2 border-border">
           <AvatarImage src={patient.avatar} alt={patient.name} />
-          <AvatarFallback className="bg-primary/10 font-display text-xl font-bold text-primary">
+          <AvatarFallback className="bg-secondary font-display text-2xl font-bold text-foreground">
             {patient.name.charAt(0)}
           </AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="font-display text-2xl font-bold">{patient.name}</h1>
+          <h1 className="font-display text-3xl font-bold text-foreground truncate">{patient.name}</h1>
           <p className="text-sm text-muted-foreground">{patient.email}</p>
         </div>
       </div>
 
-      {/* Assignments */}
-      <h2 className="font-display text-lg font-semibold">
-        Assignments ({assignments.length})
-      </h2>
+      <div className="flex items-center gap-2">
+        <h2 className="font-display text-lg font-bold">Assignments</h2>
+        <span className="text-sm text-muted-foreground">({assignments.length})</span>
+      </div>
 
       {assignmentsLoading ? (
-        <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
       ) : (
         <div className="space-y-3">
           {assignments.map((a, i) => {
@@ -171,30 +163,23 @@ const PatientDetailPage = () => {
 
             return (
               <motion.div key={a.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                <Card className="shadow-card">
-                  <CardContent className="p-4 space-y-3">
-                    {/* Top row */}
+                <Card className="border-border/50 shadow-card">
+                  <CardContent className="space-y-3 p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <p className="font-display font-semibold truncate">{a.pose?.poseName ?? 'Assignment'}</p>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
-                          {a.dueDate && (
-                            <span>Due {new Date(a.dueDate).toLocaleDateString()}</span>
-                          )}
-                          {a.requiredDays != null && (
-                            <span>{days}/{a.requiredDays} qualifying days</span>
-                          )}
-                          {!a.requiredDays && (
-                            <span>{totalSessions} session{totalSessions !== 1 ? 's' : ''}</span>
-                          )}
+                        <p className="font-display font-bold truncate">{a.pose?.poseName ?? 'Assignment'}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          {a.dueDate && <span>Due {new Date(a.dueDate).toLocaleDateString()}</span>}
+                          {a.requiredDays != null
+                            ? <span>{days}/{a.requiredDays} qualifying days</span>
+                            : <span>{totalSessions} session{totalSessions !== 1 ? 's' : ''}</span>}
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <Badge variant={meta.variant} className="flex items-center gap-1">
-                          {meta.icon}
-                          {meta.label}
+                        <Badge variant={meta.variant} className="flex items-center gap-1 text-xs">
+                          {meta.icon}{meta.label}
                         </Badge>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(a)}>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(a)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         <AlertDialog>
@@ -203,20 +188,14 @@ const PatientDetailPage = () => {
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </AlertDialogTrigger>
-                          <AlertDialogContent>
+                          <AlertDialogContent className="border-border/60 bg-card">
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Delete assignment?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will permanently delete the assignment and all its recorded sessions.
-                                This cannot be undone.
-                              </AlertDialogDescription>
+                              <AlertDialogTitle className="font-display font-bold">Delete assignment?</AlertDialogTitle>
+                              <AlertDialogDescription>This will permanently delete the assignment and all its sessions. This cannot be undone.</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                onClick={() => deleteMutation.mutate(a.id)}
-                              >
+                              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteMutation.mutate(a.id)}>
                                 Delete
                               </AlertDialogAction>
                             </AlertDialogFooter>
@@ -225,43 +204,38 @@ const PatientDetailPage = () => {
                       </div>
                     </div>
 
-                    {/* Progress bar */}
                     {pct !== null && (
-                      <div>
-                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{
-                              width: `${pct}%`,
-                              backgroundColor: pct >= 100 ? '#22c55e' : pct >= 60 ? '#f59e0b' : '#94a3b8',
-                            }}
-                          />
-                        </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: pct >= 100 ? '#22c55e' : pct >= 60 ? '#f59e0b' : '#64748b' }}
+                        />
                       </div>
                     )}
 
-                    {/* Notes */}
-                    {a.notes && (
-                      <p className="text-xs text-muted-foreground italic border-t pt-2">{a.notes}</p>
-                    )}
+                    {a.notes && <p className="border-t border-border/50 pt-2 text-xs italic text-muted-foreground">{a.notes}</p>}
                   </CardContent>
                 </Card>
               </motion.div>
             );
           })}
           {!assignments.length && (
-            <p className="py-8 text-center text-muted-foreground">No assignments for this patient yet.</p>
+            <p className="rounded-md border border-border py-10 text-center text-sm text-muted-foreground">
+              No assignments for this patient yet.
+            </p>
           )}
         </div>
       )}
 
       {/* Edit dialog */}
       <Dialog open={!!editAssignment} onOpenChange={open => !open && setEditAssignment(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-border/60 bg-card">
           <DialogHeader>
-            <DialogTitle>Edit Assignment — {editAssignment?.pose?.poseName}</DialogTitle>
+            <DialogTitle className="font-display text-xl font-bold">
+              Edit — {editAssignment?.pose?.poseName}
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 pt-1">
             <div className="space-y-2">
               <Label>Status</Label>
               <Select value={editStatus} onValueChange={setEditStatus}>
@@ -280,50 +254,25 @@ const PatientDetailPage = () => {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Required Days</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  placeholder="e.g. 5"
-                  value={editRequiredDays}
-                  onChange={e => setEditRequiredDays(e.target.value)}
-                />
+                <Input type="number" min="1" placeholder="e.g. 5" value={editRequiredDays} onChange={e => setEditRequiredDays(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Max Sessions / Day</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  placeholder="e.g. 2"
-                  value={editMaxPerDay}
-                  onChange={e => setEditMaxPerDay(e.target.value)}
-                />
+                <Input type="number" min="1" placeholder="e.g. 2" value={editMaxPerDay} onChange={e => setEditMaxPerDay(e.target.value)} />
               </div>
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>
-              <Textarea
-                placeholder="Add notes for the patient…"
-                value={editNotes}
-                onChange={e => setEditNotes(e.target.value)}
-                rows={3}
-              />
+              <Textarea placeholder="Add notes for the patient…" value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={3} />
             </div>
-            <div className="border-t border-border pt-3 flex flex-col gap-2">
-              <Label>Demo Media <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <div className="space-y-2 border-t border-border pt-3">
+              <Label>Demo Media <span className="font-normal text-muted-foreground">(optional)</span></Label>
               {(editAssignment?.demoVideoUrl || editAssignment?.demoImageUrl) && !editDemoFile && (
-                <p className="text-xs text-muted-foreground">
-                  Current: {editAssignment.demoVideoUrl ? 'Video' : 'Image'} attached. Upload a new file to replace it.
-                </p>
+                <p className="text-xs text-muted-foreground">Current: {editAssignment.demoVideoUrl ? 'Video' : 'Image'} attached.</p>
               )}
-              <input
-                ref={editDemoFileRef}
-                type="file"
-                accept="image/*,video/*"
-                className="hidden"
-                onChange={e => setEditDemoFile(e.target.files?.[0] ?? null)}
-              />
+              <input ref={editDemoFileRef} type="file" accept="image/*,video/*" className="hidden" onChange={e => setEditDemoFile(e.target.files?.[0] ?? null)} />
               {editDemoFile ? (
-                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm">
                   <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <span className="flex-1 truncate">{editDemoFile.name}</span>
                   <button onClick={() => { setEditDemoFile(null); if (editDemoFileRef.current) editDemoFileRef.current.value = ''; }}>
@@ -337,11 +286,7 @@ const PatientDetailPage = () => {
                 </Button>
               )}
             </div>
-            <Button
-              onClick={handleSave}
-              disabled={updateMutation.isPending || uploadingDemo}
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-            >
+            <Button onClick={handleSave} disabled={updateMutation.isPending || uploadingDemo} className="w-full">
               {(updateMutation.isPending || uploadingDemo) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Changes
             </Button>

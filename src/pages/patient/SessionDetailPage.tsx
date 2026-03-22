@@ -75,7 +75,7 @@ const SessionDetailPage = () => {
   if (!session.processed) {
     return (
       <div className="space-y-4">
-        <h1 className="font-display text-2xl font-black">{session.poseName ?? 'Session'}</h1>
+        <h1 className="font-display text-2xl font-bold">{session.poseName ?? 'Session'}</h1>
         <Card className="border-border/50">
           <CardContent className="flex items-center gap-3 p-6">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -92,8 +92,8 @@ const SessionDetailPage = () => {
   if (session.processingError) {
     return (
       <div className="space-y-4">
-        <h1 className="font-display text-2xl font-black">{session.poseName ?? 'Session'}</h1>
-        <p className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">{session.processingError}</p>
+        <h1 className="font-display text-2xl font-bold">{session.poseName ?? 'Session'}</h1>
+        <p className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">{session.processingError}</p>
       </div>
     );
   }
@@ -142,8 +142,8 @@ const SessionDetailPage = () => {
                 { label: 'Correct',       value: analysis.correctFrames,                         cls: 'text-success',    bg: 'bg-success/10' },
                 { label: 'Incorrect',     value: analysis.totalFrames - analysis.correctFrames,  cls: 'text-destructive',bg: 'bg-destructive/10' },
               ].map(s => (
-                <div key={s.label} className={`rounded-xl p-3 text-center ${s.bg}`}>
-                  <p className={`font-display text-2xl font-black ${s.cls}`}>{s.value}</p>
+                <div key={s.label} className={`rounded-md p-3 text-center ${s.bg}`}>
+                  <p className={`font-display text-2xl font-bold ${s.cls}`}>{s.value}</p>
                   <p className="text-xs text-muted-foreground">{s.label}</p>
                 </div>
               ))}
@@ -211,7 +211,7 @@ const SessionDetailPage = () => {
             </CardHeader>
             <CardContent className="space-y-3">
               {analysis.areasOfConcern.map((concern, i) => (
-                <div key={i} className={`rounded-xl border p-3 ${severityColor[concern.severity]}`}>
+                <div key={i} className={`rounded-md border p-3 ${severityColor[concern.severity]}`}>
                   <div className="flex items-center justify-between">
                     <span className="font-semibold">{concern.bodyPart}</span>
                     <Badge variant="outline" className="text-xs capitalize">{concern.severity}</Badge>

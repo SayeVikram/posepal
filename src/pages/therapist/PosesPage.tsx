@@ -40,36 +40,31 @@ const PosesPage = () => {
     mutationFn: () => api.createPose(token!, { name, pose_class: poseClass, instructions }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['poses', token] });
-      setName('');
-      setInstructions('');
-      setPoseClass('');
-      setOpen(false);
+      setName(''); setInstructions(''); setPoseClass(''); setOpen(false);
       toast.success('Pose template created!');
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const handleCreate = () => {
-    if (!name.trim() || !poseClass) return;
-    createMutation.mutate();
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold">Pose Templates</h1>
+    <div className="space-y-8">
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Library</p>
+          <h1 className="mt-2 font-display text-5xl font-bold leading-none text-foreground">Pose Templates</h1>
+        </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button>
               <Plus className="mr-2 h-4 w-4" />
               New Pose
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="border-border/60 bg-card">
             <DialogHeader>
-              <DialogTitle>Create Pose Template</DialogTitle>
+              <DialogTitle className="font-display text-xl font-bold">Create Pose Template</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 pt-1">
               <div className="space-y-2">
                 <Label>Pose Name</Label>
                 <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Standing Forward Bend" />
@@ -90,13 +85,9 @@ const PosesPage = () => {
               </div>
               <div className="space-y-2">
                 <Label>Instructions</Label>
-                <Textarea value={instructions} onChange={e => setInstructions(e.target.value)} placeholder="Step-by-step instructions for the patient..." rows={4} />
+                <Textarea value={instructions} onChange={e => setInstructions(e.target.value)} placeholder="Step-by-step instructions for the patient…" rows={4} />
               </div>
-              <Button
-                onClick={handleCreate}
-                disabled={createMutation.isPending || !name.trim() || !poseClass}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-              >
+              <Button onClick={() => { if (!name.trim() || !poseClass) return; createMutation.mutate(); }} disabled={createMutation.isPending || !name.trim() || !poseClass} className="w-full">
                 {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Template
               </Button>
@@ -108,24 +99,28 @@ const PosesPage = () => {
       <div className="grid gap-3 sm:grid-cols-2">
         {poses.map((p, i) => (
           <motion.div key={p.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-            <Card className="shadow-card">
+            <Card className="border-border/50 shadow-card transition-all hover:border-border hover:shadow-elevated">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <Activity className="h-5 w-5 text-primary" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-secondary">
+                    <Activity className="h-4 w-4 text-primary" />
                   </div>
-                  <div>
-                    <p className="font-display font-semibold">{p.poseName}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-display font-bold">{p.poseName}</p>
                     <p className="text-xs text-muted-foreground">{p.expectedPoseClass}</p>
                   </div>
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{p.instructions}</p>
+                {p.instructions && (
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground line-clamp-2">{p.instructions}</p>
+                )}
               </CardContent>
             </Card>
           </motion.div>
         ))}
         {!poses.length && (
-          <p className="col-span-2 py-12 text-center text-muted-foreground">No pose templates yet.</p>
+          <p className="col-span-2 rounded-md border border-border py-16 text-center text-sm text-muted-foreground">
+            No pose templates yet. Create one to get started.
+          </p>
         )}
       </div>
     </div>

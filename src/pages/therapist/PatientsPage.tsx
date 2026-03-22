@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Link } from 'react-router-dom';
-import { Send, Loader2, Paperclip, X } from 'lucide-react';
+import { Send, Loader2, Paperclip, X, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -62,36 +62,32 @@ const PatientsPage = () => {
       }
       queryClient.invalidateQueries({ queryKey: ['therapist-patients', token] });
       setAssignOpen(false);
-      setSelectedPatient('');
-      setSelectedPose('');
-      setDueDate('');
-      setRequiredDays('');
-      setMaxSessionsPerDay('');
-      setDemoFile(null);
+      setSelectedPatient(''); setSelectedPose(''); setDueDate('');
+      setRequiredDays(''); setMaxSessionsPerDay(''); setDemoFile(null);
       toast.success('Pose assigned successfully!');
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const handleAssign = () => {
-    if (!selectedPatient || !selectedPose) return;
-    assignMutation.mutate();
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold">Patients</h1>
+    <div className="space-y-8">
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Manage</p>
+          <h1 className="mt-2 font-display text-5xl font-bold leading-none text-foreground">Patients</h1>
+        </div>
         <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button>
               <Send className="mr-2 h-4 w-4" />
               Assign Pose
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>Assign Pose to Patient</DialogTitle></DialogHeader>
-            <div className="space-y-4">
+          <DialogContent className="max-h-[90vh] overflow-y-auto border-border/60 bg-card">
+            <DialogHeader>
+              <DialogTitle className="font-display text-xl font-bold">Assign Pose to Patient</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-1">
               <div className="space-y-2">
                 <Label>Patient</Label>
                 <Select value={selectedPatient} onValueChange={setSelectedPatient}>
@@ -121,36 +117,18 @@ const PatientsPage = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Required Days</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    placeholder="e.g. 5"
-                    value={requiredDays}
-                    onChange={e => setRequiredDays(e.target.value)}
-                  />
+                  <Input type="number" min="1" placeholder="e.g. 5" value={requiredDays} onChange={e => setRequiredDays(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Max Sessions / Day</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    placeholder="e.g. 2"
-                    value={maxSessionsPerDay}
-                    onChange={e => setMaxSessionsPerDay(e.target.value)}
-                  />
+                  <Input type="number" min="1" placeholder="e.g. 2" value={maxSessionsPerDay} onChange={e => setMaxSessionsPerDay(e.target.value)} />
                 </div>
               </div>
-              <div className="border-t border-border pt-3 flex flex-col gap-2">
-                <Label>Demo Media <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                <input
-                  ref={demoFileRef}
-                  type="file"
-                  accept="image/*,video/*"
-                  className="hidden"
-                  onChange={e => setDemoFile(e.target.files?.[0] ?? null)}
-                />
+              <div className="border-t border-border pt-3 space-y-2">
+                <Label>Demo Media <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                <input ref={demoFileRef} type="file" accept="image/*,video/*" className="hidden" onChange={e => setDemoFile(e.target.files?.[0] ?? null)} />
                 {demoFile ? (
-                  <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm">
                     <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <span className="flex-1 truncate">{demoFile.name}</span>
                     <button onClick={() => { setDemoFile(null); if (demoFileRef.current) demoFileRef.current.value = ''; }}>
@@ -165,9 +143,9 @@ const PatientsPage = () => {
                 )}
               </div>
               <Button
-                onClick={handleAssign}
+                onClick={() => { if (!selectedPatient || !selectedPose) return; assignMutation.mutate(); }}
                 disabled={assignMutation.isPending || !selectedPatient || !selectedPose}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                className="w-full"
               >
                 {assignMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Assign
@@ -177,28 +155,33 @@ const PatientsPage = () => {
         </Dialog>
       </div>
 
-      <div className="space-y-3">
-        {patients.map((p, i) => (
-          <motion.div key={p.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-            <Link to={`/patient/${p.id}`}>
-              <Card className="shadow-card transition-shadow hover:shadow-elevated">
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 font-display text-lg font-bold text-primary">
-                    {p.name.charAt(0)}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-display font-semibold">{p.name}</p>
-                    <p className="text-sm text-muted-foreground">{p.email}</p>
-                  </div>
-                </CardContent>
-              </Card>
+      {patients.length > 0 ? (
+        <div className="divide-y divide-border rounded-md border border-border">
+          {patients.map((p, i) => (
+            <Link key={p.id} to={`/patient/${p.id}`}>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: i * 0.04 }}
+                className="group flex items-center gap-3 p-4 transition-colors hover:bg-secondary/50"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-secondary font-display text-sm font-bold text-foreground">
+                  {p.name.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{p.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{p.email}</p>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              </motion.div>
             </Link>
-          </motion.div>
-        ))}
-        {!patients.length && (
-          <p className="py-12 text-center text-muted-foreground">No patients yet. Assign a pose to add a patient.</p>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-md border border-border py-16 text-center text-sm text-muted-foreground">
+          No patients yet. Assign a pose to add a patient.
+        </p>
+      )}
     </div>
   );
 };

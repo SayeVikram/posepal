@@ -70,7 +70,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
             >
               <Avatar className="h-7 w-7 border border-border">
                 <AvatarImage src={user?.avatar} alt={user?.name} />
-                <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
+                <AvatarFallback className="bg-secondary text-xs font-bold text-foreground">
                   {(user?.name ?? '?').split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)}
                 </AvatarFallback>
               </Avatar>
@@ -80,6 +80,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
               variant="ghost"
               size="icon"
               onClick={handleLogout}
+              aria-label="Sign out"
               className="text-muted-foreground hover:text-foreground"
             >
               <LogOut className="h-4 w-4" />

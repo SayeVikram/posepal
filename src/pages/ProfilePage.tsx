@@ -21,11 +21,7 @@ const ProfilePage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const initials = (user?.name ?? '?')
-    .split(' ')
-    .map(p => p[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+    .split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
 
   const handleSaveName = async () => {
     if (!token || !name.trim() || name === user?.name) return;
@@ -34,11 +30,8 @@ const ProfilePage = () => {
       const updated = await api.updateProfile(token, { name: name.trim() });
       setUser(updated);
       toast.success('Name updated');
-    } catch {
-      toast.error('Failed to update name');
-    } finally {
-      setSavingName(false);
-    }
+    } catch { toast.error('Failed to update name'); }
+    finally { setSavingName(false); }
   };
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,12 +42,8 @@ const ProfilePage = () => {
       const updated = await api.uploadAvatar(token, file);
       setUser(updated);
       toast.success('Avatar updated');
-    } catch {
-      toast.error('Failed to upload avatar');
-    } finally {
-      setUploadingAvatar(false);
-      e.target.value = '';
-    }
+    } catch { toast.error('Failed to upload avatar'); }
+    finally { setUploadingAvatar(false); e.target.value = ''; }
   };
 
   const handlePasswordReset = async () => {
@@ -64,109 +53,78 @@ const ProfilePage = () => {
       const { error } = await supabase.auth.resetPasswordForEmail(user.email);
       if (error) throw error;
       toast.success('Password reset email sent');
-    } catch {
-      toast.error('Failed to send reset email');
-    } finally {
-      setSendingReset(false);
-    }
+    } catch { toast.error('Failed to send reset email'); }
+    finally { setSendingReset(false); }
   };
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
-      <h1 className="font-display text-2xl font-bold">Profile & Settings</h1>
+    <div className="mx-auto max-w-lg space-y-8">
+      <div>
+        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Account</p>
+        <h1 className="mt-2 font-display text-5xl font-bold leading-none text-foreground">Profile</h1>
+      </div>
 
       {/* Avatar + identity */}
-      <Card className="shadow-card">
-        <CardContent className="flex flex-col items-center gap-4 p-6">
+      <Card className="border-border/50 shadow-card">
+        <CardContent className="flex flex-col items-center gap-4 p-8">
           <div className="relative">
-            <Avatar className="h-24 w-24">
+            <Avatar className="h-24 w-24 border-2 border-border">
               <AvatarImage src={user?.avatar} alt={user?.name} />
-              <AvatarFallback className="bg-primary/10 text-primary text-xl font-semibold">
+              <AvatarFallback className="bg-secondary font-display text-xl font-bold text-foreground">
                 {initials}
               </AvatarFallback>
             </Avatar>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadingAvatar}
-              className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow transition hover:bg-primary/90 disabled:opacity-60"
+              className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-secondary text-foreground shadow-lg transition hover:bg-muted disabled:opacity-60"
             >
-              {uploadingAvatar ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Camera className="h-4 w-4" />
-              )}
+              {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
             </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleAvatarChange}
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
           </div>
           <div className="text-center">
-            <p className="font-display text-lg font-bold">{user?.name}</p>
+            <p className="font-display text-xl font-bold">{user?.name}</p>
             <p className="text-sm text-muted-foreground">{user?.email}</p>
-            <Badge variant="secondary" className="mt-1 capitalize">
-              {user?.role}
-            </Badge>
+            <Badge variant="secondary" className="mt-2 capitalize">{user?.role}</Badge>
           </div>
         </CardContent>
       </Card>
 
-      {/* Name edit */}
-      <Card className="shadow-card">
+      {/* Name */}
+      <Card className="border-border/50 shadow-card">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Display name</CardTitle>
+          <CardTitle className="text-base font-bold">Display name</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); }}
-            />
+            <Input id="name" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); }} className="h-11" />
           </div>
-          <Button
-            onClick={handleSaveName}
-            disabled={savingName || !name.trim() || name === user?.name}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            {savingName ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Check className="mr-2 h-4 w-4" />
-            )}
+          <Button onClick={handleSaveName} disabled={savingName || !name.trim() || name === user?.name}>
+            {savingName ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
             Save
           </Button>
         </CardContent>
       </Card>
 
       {/* Account */}
-      <Card className="shadow-card">
+      <Card className="border-border/50 shadow-card">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Account</CardTitle>
+          <CardTitle className="text-base font-bold">Security</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
             <Label>Email</Label>
-            <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+            <p className="rounded-md border border-border bg-muted/30 px-3 py-2.5 text-sm text-muted-foreground">
               {user?.email}
             </p>
           </div>
-          <Separator />
-          <div className="space-y-1.5">
-            <p className="text-sm font-medium">Password</p>
-            <p className="text-xs text-muted-foreground">
-              We'll send a reset link to your email address.
-            </p>
-            <Button
-              variant="outline"
-              onClick={handlePasswordReset}
-              disabled={sendingReset}
-            >
+          <Separator className="bg-border/50" />
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Password</p>
+            <p className="text-xs text-muted-foreground">We'll send a reset link to your email address.</p>
+            <Button variant="outline" onClick={handlePasswordReset} disabled={sendingReset}>
               {sendingReset && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Send password reset email
             </Button>
