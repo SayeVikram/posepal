@@ -81,17 +81,34 @@ const RecordSessionPage = () => {
     expectedPoseClass,
   );
 
-  // Start camera
-  useEffect(() => {
+  const { data: todayCount = 0 } = useQuery({
+    queryKey: ['today-count', assignmentId, token],
+    queryFn: () => api.getTodaySessionCount(token!, Number(assignmentId)),
+    enabled: !!token && !!assignmentId && !!assignment?.maxSessionsPerDay,
+  });
+
+  const dailyLimitReached =
+    !!assignment?.maxSessionsPerDay && todayCount >= assignment.maxSessionsPerDay;
+
+  const startCamera = useCallback(() => {
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 }, audio: false })
       .then(stream => { if (videoRef.current) videoRef.current.srcObject = stream; })
       .catch(() => {});
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    (videoRef.current?.srcObject as MediaStream | null)?.getTracks().forEach(t => t.stop());
+    if (videoRef.current) videoRef.current.srcObject = null;
+  }, []);
+
+  // Cleanup only — camera starts when the user clicks "Start Recording"
+  useEffect(() => {
     return () => {
-      (videoRef.current?.srcObject as MediaStream | null)?.getTracks().forEach(t => t.stop());
+      stopCamera();
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, []);
+  }, [stopCamera]);
 
   // Collect per-frame accuracy from the live TF.js model during recording.
   // Score = probability that the CORRECT pose is happening right now.
@@ -123,6 +140,7 @@ const RecordSessionPage = () => {
   }, [phase, poseResult, expectedPoseClass]);
 
   const startCountdown = () => {
+    startCamera();
     setPhase('countdown');
     setCountdown(3);
     let c = 3;
@@ -147,6 +165,7 @@ const RecordSessionPage = () => {
     const mr = new MediaRecorder(stream, { mimeType: 'video/webm' });
     mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
     mr.onstop = () => {
+      stopCamera();
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
       setRecordedBlob(blob);
       setRecordedUrl(URL.createObjectURL(blob));
@@ -196,10 +215,26 @@ const RecordSessionPage = () => {
     <div className="space-y-4">
       <h1 className="font-display text-xl font-bold">{assignment?.pose?.poseName || 'Record Session'}</h1>
 
-      {assignment?.pose?.instructions && (
+      {(assignment?.demoImageUrl || assignment?.demoVideoUrl || assignment?.pose?.instructions) && (
         <Card className="border-primary/20 bg-primary/5 shadow-card">
-          <CardContent className="p-3 text-sm text-secondary-foreground">
-            {assignment.pose.instructions}
+          <CardContent className="p-3 space-y-3">
+            {assignment.demoImageUrl && (
+              <img
+                src={assignment.demoImageUrl}
+                alt="Demo"
+                className="w-full rounded-lg object-cover max-h-48"
+              />
+            )}
+            {assignment.demoVideoUrl && (
+              <video
+                src={assignment.demoVideoUrl}
+                controls
+                className="w-full rounded-lg max-h-48"
+              />
+            )}
+            {assignment.pose?.instructions && (
+              <p className="text-sm text-secondary-foreground">{assignment.pose.instructions}</p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -209,7 +244,11 @@ const RecordSessionPage = () => {
       )}
 
       <div className="relative mx-auto aspect-[4/3] max-w-lg overflow-hidden rounded-2xl bg-foreground/5">
-        {phase !== 'review' && phase !== 'done' ? (
+        {phase === 'preview' ? (
+          <div className="flex h-full items-center justify-center">
+            <Camera className="h-16 w-16 text-muted-foreground/20" />
+          </div>
+        ) : phase !== 'review' && phase !== 'done' ? (
           <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" style={{ transform: 'scaleX(-1)' }} />
         ) : recordedUrl ? (
           <video src={recordedUrl} controls className="h-full w-full object-cover" />
@@ -307,9 +346,21 @@ const RecordSessionPage = () => {
         </Card>
       )}
 
+      {dailyLimitReached && phase === 'preview' && (
+        <p className="rounded-lg bg-warning/10 p-3 text-sm text-warning font-medium text-center">
+          Daily limit reached — your therapist allows {assignment!.maxSessionsPerDay} session
+          {assignment!.maxSessionsPerDay !== 1 ? 's' : ''} per day for this exercise.
+          Come back tomorrow!
+        </p>
+      )}
+
       <div className="flex justify-center gap-3">
         {phase === 'preview' && (
-          <Button onClick={startCountdown} className="bg-gradient-primary text-primary-foreground hover:opacity-90">
+          <Button
+            onClick={startCountdown}
+            disabled={dailyLimitReached}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
             <Camera className="mr-2 h-4 w-4" />
             Start Recording
           </Button>
@@ -322,18 +373,18 @@ const RecordSessionPage = () => {
         )}
         {phase === 'review' && (
           <>
-            <Button variant="outline" onClick={() => { setRecordedBlob(null); setRecordedUrl(null); setLiveScore(null); setAvgScore(null); setPhase('preview'); }}>
+            <Button variant="outline" onClick={() => { setRecordedBlob(null); setRecordedUrl(null); setLiveScore(null); setAvgScore(null); startCamera(); setPhase('preview'); }}>
               <RotateCcw className="mr-2 h-4 w-4" />
               Retake
             </Button>
-            <Button onClick={handleUpload} className="bg-gradient-primary text-primary-foreground hover:opacity-90">
+            <Button onClick={handleUpload} className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Upload className="mr-2 h-4 w-4" />
               Upload & Analyze
             </Button>
           </>
         )}
         {phase === 'done' && sessionId && (
-          <Button onClick={() => navigate(`/session/${sessionId}`)} className="bg-gradient-primary text-primary-foreground hover:opacity-90">
+          <Button onClick={() => navigate(`/session/${sessionId}`)} className="bg-primary text-primary-foreground hover:bg-primary/90">
             View Results
           </Button>
         )}

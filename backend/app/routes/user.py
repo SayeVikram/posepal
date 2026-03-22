@@ -11,9 +11,11 @@ from app.models.schemas import (
     SessionResult,
     SessionStatus,
 )
-from app.services.video_processor import process_session_video
+from app.services.video_processor import process_session_video, recheck_assignment_after_session_delete
 from app.utils.auth import get_db_user
 from app.utils.supabase_db import (
+    count_sessions_today_for_assignment,
+    delete_session,
     get_assignment,
     get_session,
     get_session_analysis,
@@ -70,6 +72,12 @@ async def get_assignment_by_id(assignment_id: int, user=Depends(get_db_user)):
     return assignment
 
 
+@router.get("/assignments/{assignment_id}/today-count")
+async def get_today_session_count(assignment_id: int, user=Depends(get_db_user)):
+    count = await count_sessions_today_for_assignment(assignment_id, user["id"])
+    return {"count": count}
+
+
 @router.post("/session")
 async def upload_session(
     assignment_id: int = Form(...),
@@ -113,6 +121,22 @@ async def get_session_analysis_route(session_id: int, user=Depends(get_db_user))
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not available yet")
     return analysis
+
+
+@router.delete("/session/{session_id}")
+async def delete_session_route(session_id: int, user=Depends(get_db_user)):
+    session = await get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.get("patient_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    assignment_id = session.get("assignment_id")
+    deleted = await delete_session(session_id, user["id"])
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if assignment_id:
+        await recheck_assignment_after_session_delete(assignment_id)
+    return {"deleted": True}
 
 
 @router.get("/session/{session_id}/feedback")

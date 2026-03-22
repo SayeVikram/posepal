@@ -10,6 +10,8 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string, role: 'therapist' | 'patient') => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+  setUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -84,6 +86,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(null);
   };
 
+  const refreshUser = async () => {
+    if (token) {
+      const profile = await api.getMe(token);
+      setUser(profile);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -94,6 +103,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         register,
         logout,
+        refreshUser,
+        setUser,
       }}
     >
       {children}

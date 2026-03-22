@@ -16,6 +16,7 @@ import json
 import os
 import tempfile
 import uuid
+from datetime import datetime, timezone
 
 import cv2
 from fastapi import UploadFile
@@ -24,6 +25,9 @@ from app.config import settings
 from app.utils.supabase_db import (
     create_session,
     create_session_analysis,
+    get_assignment,
+    get_assignment_sessions_with_analysis,
+    update_assignment,
     update_session,
 )
 from app.utils.supabase_storage import upload_video
@@ -106,6 +110,8 @@ async def process_session_video(
             frame_analyses=frame_analyses,
         )
 
+        await _check_and_auto_complete(assignment_id)
+
         return session
 
     except Exception as exc:
@@ -113,6 +119,64 @@ async def process_session_video(
         raise
     finally:
         os.unlink(tmp_path)
+
+
+async def recheck_assignment_after_session_delete(assignment_id: int) -> None:
+    """After a session is deleted, revert a completed assignment to pending if day count drops below required."""
+    assignment = await get_assignment(assignment_id)
+    if not assignment or assignment.get("status") != "completed":
+        return
+
+    required_days = assignment.get("required_days")
+    if not required_days:
+        return  # No day requirement; manual completion — leave it alone
+
+    sessions = await get_assignment_sessions_with_analysis(assignment_id)
+    qualifying_dates: set[str] = set()
+    for s in sessions:
+        analyses = s.get("session_analyses") or []
+        if isinstance(analyses, dict):
+            analyses = [analyses]
+        correctness = analyses[0].get("overall_correctness", 0) if analyses else 0
+        if correctness >= settings.CORRECTNESS_THRESHOLD:
+            recorded_at = s.get("recorded_at", "")
+            if recorded_at:
+                qualifying_dates.add(recorded_at[:10])
+
+    if len(qualifying_dates) < required_days:
+        await update_assignment(assignment_id, status="pending")
+
+
+async def _check_and_auto_complete(assignment_id: int) -> None:
+    """Mark an assignment completed when enough qualifying days have been recorded."""
+    assignment = await get_assignment(assignment_id)
+    if not assignment or assignment.get("status") != "pending":
+        return
+
+    required_days = assignment.get("required_days")
+    if not required_days:
+        return  # No day requirement set; skip auto-completion
+
+    due_date_str = assignment.get("due_date")
+    if due_date_str:
+        due_date = datetime.fromisoformat(due_date_str.replace("Z", "+00:00"))
+        if datetime.now(timezone.utc) > due_date:
+            return  # Past deadline; don't auto-complete
+
+    sessions = await get_assignment_sessions_with_analysis(assignment_id)
+    qualifying_dates: set[str] = set()
+    for s in sessions:
+        analyses = s.get("session_analyses") or []
+        if isinstance(analyses, dict):
+            analyses = [analyses]
+        correctness = analyses[0].get("overall_correctness", 0) if analyses else 0
+        if correctness >= settings.CORRECTNESS_THRESHOLD:
+            recorded_at = s.get("recorded_at", "")
+            if recorded_at:
+                qualifying_dates.add(recorded_at[:10])  # YYYY-MM-DD
+
+    if len(qualifying_dates) >= required_days:
+        await update_assignment(assignment_id, status="completed")
 
 
 def _get_video_duration(path: str) -> float:

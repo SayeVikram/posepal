@@ -7,6 +7,7 @@ export interface User {
   name: string;
   email: string;
   role: 'therapist' | 'patient';
+  avatar?: string;
   createdAt: string;
 }
 
@@ -20,6 +21,13 @@ export interface PoseTemplate {
   createdAt: string;
 }
 
+export interface AssignmentSession {
+  id: number;
+  recordedAt: string;
+  processed: boolean;
+  overallCorrectness?: number;
+}
+
 export interface Assignment {
   id: number;
   therapistId: number;
@@ -28,7 +36,13 @@ export interface Assignment {
   assignedAt: string;
   dueDate: string;
   status: 'pending' | 'completed' | 'overdue';
+  notes?: string;
+  requiredDays?: number;
+  maxSessionsPerDay?: number;
+  demoVideoUrl?: string;
+  demoImageUrl?: string;
   pose?: PoseTemplate;
+  sessions?: AssignmentSession[];
 }
 
 export interface AreaOfConcern {
@@ -76,6 +90,7 @@ function adaptUser(u: Record<string, unknown>): User {
     name: u.name as string,
     email: u.email as string,
     role: u.role as 'therapist' | 'patient',
+    avatar: u.avatar as string | undefined,
     createdAt: (u.created_at as string) ?? '',
   };
 }
@@ -94,6 +109,17 @@ function adaptPoseTemplate(p: Record<string, unknown>): PoseTemplate {
 
 function adaptAssignment(a: Record<string, unknown>): Assignment {
   const pt = a.pose_templates as Record<string, unknown> | undefined;
+  const rawSessions = (a.sessions as Array<Record<string, unknown>>) ?? [];
+  const sessions: AssignmentSession[] = rawSessions.map(s => {
+    const analyses = (s.session_analyses as Array<Record<string, unknown>>) ?? [];
+    const correctness = analyses[0]?.overall_correctness as number | undefined;
+    return {
+      id: s.id as number,
+      recordedAt: (s.recorded_at as string) ?? '',
+      processed: (s.processed as boolean) ?? false,
+      overallCorrectness: correctness,
+    };
+  });
   return {
     id: a.id as number,
     therapistId: a.therapist_id as number,
@@ -102,7 +128,13 @@ function adaptAssignment(a: Record<string, unknown>): Assignment {
     assignedAt: (a.assigned_at as string) ?? '',
     dueDate: (a.due_date as string) ?? '',
     status: (a.status as 'pending' | 'completed' | 'overdue') ?? 'pending',
+    notes: (a.notes as string) ?? undefined,
+    requiredDays: (a.required_days as number) ?? undefined,
+    maxSessionsPerDay: (a.max_sessions_per_day as number) ?? undefined,
+    demoVideoUrl: (a.demo_video_url as string) ?? undefined,
+    demoImageUrl: (a.demo_image_url as string) ?? undefined,
     pose: pt ? adaptPoseTemplate(pt) : undefined,
+    sessions: sessions.length > 0 ? sessions : undefined,
   };
 }
 
@@ -187,9 +219,39 @@ async function req<T>(
 // ---------------------------------------------------------------------------
 
 export const api = {
-  // --- Auth ---
+  // --- Auth / Profile ---
   getMe: (token: string): Promise<User> =>
     req<Record<string, unknown>>('GET', '/api/auth/me', token).then(adaptUser),
+
+  getUserById: (token: string, userId: number): Promise<User> =>
+    req<Record<string, unknown>>('GET', `/api/auth/user/${userId}`, token).then(adaptUser),
+
+  updateProfile: (token: string, data: { name?: string }): Promise<User> =>
+    req<Record<string, unknown>>('PATCH', '/api/auth/me', token, data).then(adaptUser),
+
+  uploadAvatar: async (token: string, file: File): Promise<User> => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${BASE}/api/auth/upload-avatar`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json().then(adaptUser);
+  },
+
+  uploadAssignmentDemoMedia: async (token: string, assignmentId: number, file: File): Promise<{ url: string; type: 'video' | 'image' }> => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${BASE}/api/therapist/assignment/${assignmentId}/upload-demo`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
 
   // --- Patient: assignments ---
   getAssignments: (token: string): Promise<Assignment[]> =>
@@ -266,11 +328,28 @@ export const api = {
     ),
 
   // --- Therapist: assignments ---
+  getTodaySessionCount: (token: string, assignmentId: number): Promise<number> =>
+    req<{ count: number }>('GET', `/api/user/assignments/${assignmentId}/today-count`, token).then(r => r.count),
+
   assign: (
     token: string,
-    data: { patient_id: number; pose_template_id: number; due_date?: string; notes?: string },
+    data: { patient_id: number; pose_template_id: number; due_date?: string; notes?: string; required_days?: number; max_sessions_per_day?: number; demo_video_url?: string; demo_image_url?: string },
   ): Promise<Assignment> =>
     req<Record<string, unknown>>('POST', '/api/therapist/assign', token, data).then(
+      adaptAssignment,
+    ),
+
+  getPatientAssignments: (token: string, patientId: number): Promise<Assignment[]> =>
+    req<Record<string, unknown>[]>('GET', `/api/therapist/patient/${patientId}/assignments`, token).then(
+      list => list.map(adaptAssignment),
+    ),
+
+  updateAssignment: (
+    token: string,
+    assignmentId: number,
+    data: { status?: string; notes?: string; due_date?: string; required_days?: number; max_sessions_per_day?: number; demo_video_url?: string; demo_image_url?: string },
+  ): Promise<Assignment> =>
+    req<Record<string, unknown>>('PATCH', `/api/therapist/assignment/${assignmentId}`, token, data).then(
       adaptAssignment,
     ),
 
@@ -301,4 +380,12 @@ export const api = {
 
   markReviewed: (token: string, sessionId: number): Promise<unknown> =>
     req('POST', `/api/therapist/session/${sessionId}/mark-reviewed`, token),
+
+  // --- Patient: delete session ---
+  deleteSession: (token: string, sessionId: number): Promise<void> =>
+    req('DELETE', `/api/user/session/${sessionId}`, token).then(() => undefined),
+
+  // --- Therapist: delete assignment ---
+  deleteAssignment: (token: string, assignmentId: number): Promise<void> =>
+    req('DELETE', `/api/therapist/assignment/${assignmentId}`, token).then(() => undefined),
 };

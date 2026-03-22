@@ -10,6 +10,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
 from app.config import settings
+from app.utils.supabase_client import get_client
 
 
 @lru_cache(maxsize=1)
@@ -99,3 +100,18 @@ async def get_delivery_url(key: str) -> str:
         Params={"Bucket": settings.S3_BUCKET, "Key": key},
         ExpiresIn=settings.SIGNED_URL_EXPIRES_SECONDS,
     )
+
+AVATAR_BUCKET = "avatars"
+DEMO_BUCKET = "demo-media"
+async def upload_avatar(data: bytes, user_id: int, filename: str, content_type: str) -> str:
+    sb = get_client()
+    path = f"{user_id}/{uuid.uuid4()}_{filename}"
+    sb.storage.from_(AVATAR_BUCKET).upload(path, data, {"content-type": content_type})
+    return sb.storage.from_(AVATAR_BUCKET).get_public_url(path)
+
+
+async def upload_demo_media(data: bytes, assignment_id: int, filename: str, content_type: str) -> str:
+    sb = get_client()
+    path = f"{assignment_id}/{uuid.uuid4()}_{filename}"
+    sb.storage.from_(DEMO_BUCKET).upload(path, data, {"content-type": content_type})
+    return sb.storage.from_(DEMO_BUCKET).get_public_url(path)

@@ -1,23 +1,29 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from app.models.schemas import (
     AddPatientRequest,
     AssignmentCreate,
+    AssignmentUpdate,
     FeedbackCreate,
     PoseTemplateCreate,
 )
 from app.utils.auth import require_role
+from app.utils.supabase_storage import upload_demo_media
 from app.utils.supabase_db import (
     create_assignment,
     create_feedback,
     create_pose_template,
+    delete_assignment,
     get_all_patients,
+    get_assignment,
     get_patient_sessions,
     get_session,
     get_session_analysis,
+    get_therapist_patient_assignments,
     get_therapist_patients,
     get_therapist_pose_templates,
     mark_feedbacks_reviewed,
+    update_assignment,
 )
 
 router = APIRouter()
@@ -48,7 +54,62 @@ async def assign_pose(body: AssignmentCreate, user=Depends(require_role("therapi
         pose_template_id=body.pose_template_id,
         due_date=body.due_date,
         notes=body.notes,
+        required_days=body.required_days,
+        max_sessions_per_day=body.max_sessions_per_day,
+        demo_video_url=body.demo_video_url,
+        demo_image_url=body.demo_image_url,
     )
+
+
+@router.post("/assignment/{assignment_id}/upload-demo")
+async def upload_assignment_demo(
+    assignment_id: int,
+    file: UploadFile = File(...),
+    user=Depends(require_role("therapist")),
+):
+    assignment = await get_assignment(assignment_id)
+    if not assignment or assignment.get("therapist_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    data = await file.read()
+    url = await upload_demo_media(data, assignment_id, file.filename or "demo", file.content_type or "application/octet-stream")
+    content_type = file.content_type or ""
+    field = "demo_video_url" if content_type.startswith("video/") else "demo_image_url"
+    updated = await update_assignment(assignment_id, **{field: url})
+    return {"url": url, "type": "video" if field == "demo_video_url" else "image", "assignment": updated}
+
+
+@router.get("/patient/{patient_id}/assignments")
+async def patient_assignments(patient_id: int, user=Depends(require_role("therapist"))):
+    return await get_therapist_patient_assignments(user["id"], patient_id)
+
+
+@router.delete("/assignment/{assignment_id}")
+async def delete_assignment_endpoint(
+    assignment_id: int,
+    user=Depends(require_role("therapist")),
+):
+    assignment = await get_assignment(assignment_id)
+    if not assignment or assignment.get("therapist_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    deleted = await delete_assignment(assignment_id, user["id"])
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    return {"deleted": True}
+
+
+@router.patch("/assignment/{assignment_id}")
+async def update_assignment_endpoint(
+    assignment_id: int,
+    body: AssignmentUpdate,
+    user=Depends(require_role("therapist")),
+):
+    assignment = await get_assignment(assignment_id)
+    if not assignment or assignment.get("therapist_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    fields = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not fields:
+        return assignment
+    return await update_assignment(assignment_id, **fields)
 
 
 @router.get("/patients")
