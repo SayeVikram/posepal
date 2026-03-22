@@ -221,15 +221,15 @@ export const api = {
     assignmentId: number,
     videoBlob: Blob,
     filename = 'session.webm',
-    frameAnalyses?: Array<{ ts: number; score: number; is_correct: boolean; label: string }>,
+    frameSamples?: Array<{ ts: number; score: number }>,
   ): Promise<Session> => {
     const form = new FormData();
     form.append('assignment_id', String(assignmentId));
     form.append('video', videoBlob, filename);
-    // Send live frame analyses so the backend doesn't have to re-classify
-    // with a different model — post-session scores will match what was shown live.
-    if (frameAnalyses && frameAnalyses.length > 0) {
-      form.append('frame_analyses', JSON.stringify(frameAnalyses));
+    // Send per-frame accuracy samples from the live TF.js model.
+    // Backend uses these directly — no server-side re-analysis at all.
+    if (frameSamples && frameSamples.length > 0) {
+      form.append('frame_analyses', JSON.stringify(frameSamples));
     }
     const res = await fetch(`${BASE}/api/user/session`, {
       method: 'POST',

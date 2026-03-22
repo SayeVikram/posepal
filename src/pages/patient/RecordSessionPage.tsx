@@ -11,12 +11,10 @@ import { usePoseDetection } from '@/components/PoseCamera/usePoseDetection';
 
 type Phase = 'preview' | 'countdown' | 'recording' | 'review' | 'uploading' | 'done';
 
-/** One sampled frame captured during live recording. */
-interface LiveFrameAnalysis {
-  ts: number;          // seconds since recording started
-  score: number;       // blended live score (shown in the UI)
-  is_correct: boolean; // true when label matches expected pose and score >= 0.5
-  label: string;       // top predicted pose class
+/** One sampled data point collected from the live TF.js model during recording. */
+interface FrameSample {
+  ts: number;    // seconds since recording started
+  score: number; // probability [0-1] that the correct pose is happening
 }
 
 const ScoreRing = ({ score }: { score: number }) => {
@@ -54,10 +52,9 @@ const RecordSessionPage = () => {
   const chunksRef = useRef<Blob[]>([]);
   const scoreHistoryRef = useRef<number[]>([]);
 
-  // Collected per-frame accuracy data from the live TF.js model.
-  // Sent alongside the video so post-session analysis matches what the user saw.
-  const frameAnalysesRef = useRef<LiveFrameAnalysis[]>([]);
-  // Wall-clock ms at which recording started — used to compute frame timestamps.
+  // Per-frame accuracy samples collected from the live TF.js model.
+  // Sent to the backend on upload — post-session scores come from here directly.
+  const frameSamplesRef = useRef<FrameSample[]>([]);
   const recordingStartMsRef = useRef<number>(0);
 
   const [phase, setPhase] = useState<Phase>('preview');
@@ -77,6 +74,7 @@ const RecordSessionPage = () => {
     enabled: !!token && !!assignmentId,
   });
   const expectedPoseClass = assignment?.pose?.expectedPoseClass;
+
   const { result: poseResult, loading: poseLoading, error: poseError } = usePoseDetection(
     videoRef,
     overlayCanvasRef,
@@ -95,34 +93,24 @@ const RecordSessionPage = () => {
     };
   }, []);
 
-  // Collect live accuracy data and update live score display during recording.
+  // Collect per-frame accuracy from the live TF.js model during recording.
+  // Score = probability that the CORRECT pose is happening right now.
+  // This is the single source of truth — post-session analysis uses this array.
   useEffect(() => {
     if (phase !== 'recording' || !poseResult) return;
 
-    const expected = poseResult.expectedConfidence;
-    let displayScore: number;
-
-    if (expected !== null) {
-      const targetMatch =
-        !!expectedPoseClass &&
-        poseResult.label.toLowerCase() === expectedPoseClass.toLowerCase();
-      // Blended display score — same formula shown in the live ring.
-      displayScore = targetMatch
-        ? Math.max(expected, poseResult.confidence)
-        : Math.max(expected * 0.75, poseResult.confidence * 0.25);
-    } else {
-      displayScore = poseResult.confidence;
-    }
-
-    // is_correct mirrors EXACTLY what the live ring shows the user.
-    // If the ring was < 50% this frame → incorrect. No separate logic.
-    const is_correct = displayScore >= 0.5;
+    // expectedConfidence = model's softmax probability for the assigned pose class.
+    // This is the most direct measure of "is the patient doing the right pose?"
+    // Falls back to 0 when the expected class isn't found in VITE_POSE_CLASS_NAMES
+    // (conservative — unknown config should not inflate accuracy).
+    const score = expectedPoseClass
+      ? (poseResult.expectedConfidence ?? 0)
+      : poseResult.confidence;
 
     const ts = (Date.now() - recordingStartMsRef.current) / 1000;
-    frameAnalysesRef.current.push({ ts, score: displayScore, is_correct, label: poseResult.label });
-
-    scoreHistoryRef.current.push(displayScore);
-    setLiveScore(displayScore);
+    frameSamplesRef.current.push({ ts, score });
+    scoreHistoryRef.current.push(score);
+    setLiveScore(score);
     const avg = scoreHistoryRef.current.reduce((a, b) => a + b, 0) / scoreHistoryRef.current.length;
     setAvgScore(avg);
   }, [phase, poseResult, expectedPoseClass]);
@@ -144,7 +132,7 @@ const RecordSessionPage = () => {
     setLiveScore(null);
     setAvgScore(null);
     scoreHistoryRef.current = [];
-    frameAnalysesRef.current = [];
+    frameSamplesRef.current = [];
     recordingStartMsRef.current = Date.now();
     chunksRef.current = [];
     const stream = videoRef.current?.srcObject as MediaStream;
@@ -177,7 +165,7 @@ const RecordSessionPage = () => {
         Number(assignmentId),
         recordedBlob,
         'session.webm',
-        frameAnalysesRef.current,
+        frameSamplesRef.current,
       );
       setSessionId(session.id);
       setPhase('done');
@@ -234,7 +222,6 @@ const RecordSessionPage = () => {
           )}
         </AnimatePresence>
 
-        {/* Recording indicator */}
         {phase === 'recording' && (
           <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-destructive px-3 py-1 text-sm font-medium text-destructive-foreground">
             <span className="h-2 w-2 animate-pulse rounded-full bg-destructive-foreground" />
@@ -242,7 +229,6 @@ const RecordSessionPage = () => {
           </div>
         )}
 
-        {/* Live score overlay */}
         {phase === 'recording' && liveScore !== null && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
@@ -253,7 +239,6 @@ const RecordSessionPage = () => {
           </motion.div>
         )}
 
-        {/* Score bar at bottom during recording */}
         {phase === 'recording' && liveScore !== null && (
           <div className="absolute bottom-0 left-0 right-0 h-2 bg-black/30">
             <motion.div
@@ -270,7 +255,7 @@ const RecordSessionPage = () => {
         {phase === 'uploading' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-foreground/60 text-primary-foreground">
             <Loader2 className="h-10 w-10 animate-spin" />
-            <p className="mt-3 font-medium">Uploading & analyzing…</p>
+            <p className="mt-3 font-medium">Uploading…</p>
           </div>
         )}
       </div>
@@ -291,7 +276,6 @@ const RecordSessionPage = () => {
         </p>
       )}
 
-      {/* Avg score shown in review */}
       {phase === 'review' && avgScore !== null && (
         <Card className="border-primary/20 bg-primary/5 shadow-card">
           <CardContent className="flex items-center gap-3 p-3">
