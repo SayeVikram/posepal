@@ -4,7 +4,7 @@ AI-powered physiotherapy platform where therapists assign pose exercises and pat
 ![IMG_0012](https://github.com/user-attachments/assets/b0f259a0-4690-4447-9ae2-1322ddeea80a)
 
 # DEMO VIDEO
-[![Demo](https://img.youtube.com/vi/FhDISOhTMoE/0.jpg)](https://www.youtube.com/watch?v=FhDISOhTMoE "DEMO")
+[![Demo](https://img.youtube.com/vi/FhDISOhTMoE/0.jpg)](https://www.youtube.com/watch?v=FhDISOhTMoE "DEMO")]
 
 ---
 
